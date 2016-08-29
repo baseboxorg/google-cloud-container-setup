@@ -2,15 +2,15 @@
 # Docker setup for Wordpress in multiple container setup by @bobvanluijt
 ################################
 
-# Set the arguments
-ARG ssl_domain
-ENV ssl_domain ${ssl_domain}
-
 # Set the base image to Ubuntu
 FROM ubuntu:16.04
 
 # File Author / Maintainer
 MAINTAINER Bob van Luijt
+
+# Set the arguments
+ARG ssl_domain
+ENV ssl_domain ${ssl_domain}
 
 # Update the repository sources list
 RUN apt-get update -qq -y
