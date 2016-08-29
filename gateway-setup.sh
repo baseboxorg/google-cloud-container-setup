@@ -50,7 +50,4 @@ service docker start
 apt-get install nginx -qq -y
 
 # Install SSL
-apt-get install letsencrypt 
-
-# Build from the Dockerfile
-docker build -t wordpress-hhvm-gcloud .
+apt-get install letsencrypt -qq -y

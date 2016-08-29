@@ -2,6 +2,7 @@
 
 ## Setup the gateway server
 
+0. Run as root: `sudo su`
 1. Go to home folder: `cd ~`
 2. Clone this repo: `git clone https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud.git`
 3. Go into dir: `cd Docker-multi-wordpress-hhvm-google-cloud`
