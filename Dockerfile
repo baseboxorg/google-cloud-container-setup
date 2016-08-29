@@ -22,7 +22,7 @@ RUN apt-get install nginx -qq -y
 RUN apt-get install hhvm -qq -y
 
 # install git
-RUN apt-get install git -qq -y
+RUN apt-get install git-core -qq -y
 
 # Go into www dire
 RUN cd /var/www
@@ -36,13 +36,13 @@ RUN git clone https://github.com/WordPress/WordPress.git && \
     git pull
 
 # Install letsencrypt
-RUN apt-get install letsencrypt 
+RUN apt-get install letsencrypt -qq -y
 
 # setup the script
 RUN letsencrypt certonly --webroot -w /var/www/WordPress -d ${ssl_domain} -d www.${ssl_domain}
 
 # Remove git
-RUN apt-get remove git -qq -y
+RUN apt-get remove git-core -qq -y
 
 # Expose port 80
 EXPOSE 80
