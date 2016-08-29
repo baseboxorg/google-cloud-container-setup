@@ -1,3 +1,7 @@
+################################
+# Docker setup for Wordpress in multiple container setup by @bobvanluijt
+################################
+
 # Set the base image to Ubuntu
 FROM ubuntu:16.04
 
@@ -26,6 +30,12 @@ RUN git clone https://github.com/WordPress/WordPress.git && \
     git checkout 4.6-branch && \
     git fetch && \
     git pull
+
+# Install letsencrypt
+apt-get install letsencrypt 
+
+# setup the script
+letsencrypt certonly --webroot -w /var/www/WordPress -d example.com -d www.example.com
 
 # Remove git
 RUN apt-get remove git -qq -y

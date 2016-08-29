@@ -1,29 +1,56 @@
+################################
+# Gateway setup by @bobvanluijt
+################################
+
 #!/bin/bash
 
-sudo su
+# Run the script as root
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
 
-apt-get update -qq -y && \
+# Update
+apt-get update -qq -y
 
-apt-get install apt-transport-https ca-certificates -qq -y && \
+# Install Docker deps
+apt-get install apt-transport-https ca-certificates -qq -y
 
-apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D && \
+# Add docker keys
+apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 
-touch /etc/apt/sources.list.d/docker.list && \
+# Update with docker keys
+apt-get update -qq -y
 
-echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" >> /etc/apt/sources.list.d/docker.list && \
+# Create file docker.list
+touch /etc/apt/sources.list.d/docker.list
 
-apt-get update -qq -y && \
+# Add Ubuntu Xenial repo
+echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" >> /etc/apt/sources.list.d/docker.list
 
-apt-get purge lxc-docker -qq -y && \
+# Update after adding Docker repo
+apt-get update -qq -y
 
-apt-cache policy docker-engine && \
+# Double check and remove if above already exsists
+apt-get purge lxc-docker -qq -y
 
-apt-get update -qq -y && \
+# Run Cache
+apt-cache policy docker-engine
 
-apt-get install linux-image-extra-$(uname -r) linux-image-extra-virtual -qq -y && \
+# Install ubuntu image
+apt-get install linux-image-extra-$(uname -r) linux-image-extra-virtual -qq -y
 
-apt-get install docker-engine -qq -y && \
+# Install docker engine
+apt-get install docker-engine -qq -y
 
-service docker start && \
+# Start the Docker service
+service docker start
 
+# Install NGINX
 apt-get install nginx -qq -y
+
+# Install SSL
+apt-get install letsencrypt 
+
+# Build from the Dockerfile
+docker build -t wordpress-hhvm-gcloud .
