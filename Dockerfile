@@ -45,12 +45,19 @@ RUN git clone https://github.com/WordPress/WordPress.git && \
     git fetch && \
     git pull
    
+# Download wpconfig
+RUN wget https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/master/wp-config.php
+   
 # Install super cache, first set chmod 777 and set back later
 RUN chmod 777 wp-config.php && \
     chmod 777 /var/www/WordPress/wp-content && \
-    wp plugin install wp-super-cache --activate && \
+    wp plugin install wp-super-cache --activate --allow-root && \
     chmod 755 wp-config.php && \
     chmod 755 /var/www/WordPress/wp-content
+   
+# Set nginx config
+RUN cd /etc/nginx/sites-enabled/ && \
+    wget https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/master/default
    
 # Install letsencrypt
 RUN apt-get install letsencrypt -qq -y
