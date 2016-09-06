@@ -1,0 +1,49 @@
+##
+# Wordpress nginx settings for Dorel websites
+# Author: Bob van Luijt
+##
+server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+
+        # listen 443 ssl default_server;
+        # listen [::]:443 ssl default_server;
+        
+        charset UTF-8;
+
+        root /var/www/WordPress;
+        
+        index index.php index.html index.htm;
+
+        server_name _;
+
+        location / {
+            try_files $uri/ /index.php?$args;
+        }
+
+        location ~ \.php$ {
+            try_files $uri =404;
+            fastcgi_split_path_info ^(.+\.php)(/.+)$;
+            fastcgi_pass unix:/run/php/php7.0-fpm.sock;
+            fastcgi_index index.php;
+            include fastcgi.conf;
+            add_header Cache-Control "public";
+            access_log off;
+        }
+
+        ###
+        # Replace this with the disabling of php caching in the wp-admin folder
+        ###
+
+        location ~* \.(js|css|svg|png|jpg|jpeg|gif|ico|eot|otf|ttf|woff)$ {
+            add_header Access-Control-Allow-Origin *;
+            add_header Cache-Control "public";
+            access_log off;
+            log_not_found off;
+            expires 1y;
+        }
+
+        location ~ /\.ht {
+               deny all;
+        }
+}
