@@ -13,6 +13,12 @@ fi
 # Build from the Dockerfile based on the env variables
 docker build -t wordpress-hhvm-gcloud .
 
+###
+# Setup DB and add arguments to container creation
+# echo "create database wordpress" |  mysql --host=[]IP] --user=[USR] --password=[PASS]
+# FIX PASS ISSUE
+###
+
 # Get the container ID
 container=$(docker run -d wordpress-hhvm-gcloud --build-arg ssl_domain=$1)
 
