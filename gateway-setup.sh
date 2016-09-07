@@ -13,6 +13,9 @@ fi
 # Update
 apt-get update -qq -y
 
+# Install MYSQL client
+apt-get install mysql-client-core-5.7 -qq -y
+
 # Install Docker deps
 apt-get install apt-transport-https ca-certificates -qq -y
 
