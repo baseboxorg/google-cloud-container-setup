@@ -24,7 +24,7 @@ ENV dbhost ${dbhost}
 RUN apt-get update -qq -y
 
 # Install apt-utils
-RUN apt-get install apt-utils -qq -y
+RUN apt-get install apt-utils curl -qq -y
 
 # Install unzip
 RUN apt-get install unzip -qq -y
