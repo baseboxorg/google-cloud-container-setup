@@ -23,6 +23,9 @@ ENV dbhost ${dbhost}
 # Update the repository sources list
 RUN apt-get update -qq -y
 
+# Install apt-utils
+RUN apt-get install apt-utils -qq -y
+
 # Install unzip
 RUN apt-get install unzip -qq -y
 
