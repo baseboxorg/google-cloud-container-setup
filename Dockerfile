@@ -11,12 +11,17 @@ MAINTAINER Bob van Luijt
 # Set the arguments
 ARG ssl_domain
 ENV ssl_domain ${ssl_domain}
+ARG dbname
+ENV dbname ${dbname}
+ARG dbuser
+ENV dbuser ${dbuser}
+ARG dbpass
+ENV dbpass ${dbpass}
+ARG dbhost
+ENV dbhost ${dbhost}
 
 # Update the repository sources list
 RUN apt-get update -qq -y
-
-# Install apt-utils
-# RUN apt-get install apt-utils -qq -y
 
 # Install unzip
 RUN apt-get install unzip -qq -y
@@ -30,9 +35,6 @@ RUN apt-get install php7.0-fpm php7.0-mysql php7.0-mcrypt php-mbstring php-gette
     phpenmod mcrypt && \
     phpenmod mbstring
 
-# install git (maybe not needed)
-# RUN apt-get install git-core -qq -y
-
 # Install wp-cli
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x wp-cli.phar && \
@@ -40,29 +42,26 @@ RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli
 
 # Go into www dire
 RUN cd /var/www
-
-# Clone wordpress with version 4.6
-#RUN git clone https://github.com/WordPress/WordPress.git && \
-#    cd WordPress && \
-#    git fetch && \
-#    git checkout 4.6-branch && \
-#    git fetch && \
-#    git pull
  
 # Download Wordpress
 RUN wget https://github.com/WordPress/WordPress/archive/4.6-branch.zip && \
-    rm 4.6-branch.zip && \
+    unzip -q 4.6-branch.zip && \
     mv WordPress-4.6-branch WordPress && \
+    rm 4.6-branch.zip && \
     cd WordPress
 
 # Download wpconfig
 RUN wget https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/master/wp-config.php
 
-##
-# SET THE CORRECT USERNAME AND PASSWORD
-# ALSO RUN THE INDEX ONCE TO CREATE THE DB
-##
-   
+# Update settings in wp-config file
+RUN sed -i 's/\[DBNAME\]/${dbname}/g' wp-config.php && \
+    sed -i 's/\[DBUSER\]/${dbuser}/g' wp-config.php && \
+    sed -i 's/\[DBPASS\]/${dbpass}/g' wp-config.php && \
+    sed -i 's/\[DBHOST\]/${dbhost}/g' wp-config.php
+
+# Install Wordpress (ADD USERNAME AND PASSWORD LATER)
+RUN wp core install --allow-root --url=130.211.39.100 --title=Example --admin_user=root --admin_password=qwerty --admin_email=bob@kubrickolo.gy
+
 # Install super cache, first set chmod 777 and set back later
 RUN chmod 777 wp-config.php && \
     chmod 777 /var/www/WordPress/wp-content && \
@@ -80,9 +79,6 @@ RUN apt-get install letsencrypt -qq -y
 
 # setup the script
 # RUN letsencrypt certonly --webroot -w /var/www/WordPress -d ${ssl_domain} -d www.${ssl_domain}
-
-# Remove git (maybe not needed anymore)
-# RUN apt-get remove git-core -qq -y
 
 # Expose port 80 and 443
 EXPOSE 80
