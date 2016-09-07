@@ -13,4 +13,11 @@ Or exec as one big command: `git clone https://github.com/bobvanluijt/Docker-mul
 
 ## Setup a new Wordpress container
 
-1. Run: `./container-setup.sh website.com` _Important: only add the domainname with the top level domain and without www. for example: foobar.nl_
+1. Run: `./container-setup.sh website.com dbhost_ip dbname_to_create dbuser_to_create dbpass_to_create dbpass_root`<br>
+_Important:<br>
+- only add the domainname with the top level domain and without www. for example: foobar.nl_
+- `dbhost_ip` = ip address of SQL server
+- `db_name_to_create` = the unique database name that should be created
+- `dbuser_to_create` = the unique database user that should be created
+- `dbpass_to_create` = the unique database user password that should be created
+- `dbpass_root` = the database password of the root user
