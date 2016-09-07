@@ -55,7 +55,7 @@ RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli
  
 # Download Wordpress
 RUN cd /var/www && \
-    wget https://github.com/WordPress/WordPress/archive/4.6-branch.zip && \
+    wget -q -nv https://github.com/WordPress/WordPress/archive/4.6-branch.zip && \
     unzip -q 4.6-branch.zip && \
     mv WordPress-4.6-branch WordPress && \
     rm 4.6-branch.zip && \
@@ -63,7 +63,7 @@ RUN cd /var/www && \
 
 # Download wpconfig and Update settings in wp-config file
 RUN cd /var/www/WordPress && \
-    wget -q https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/master/wp-config.php && \
+    wget -q -nv https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/master/wp-config.php && \
     sed -i 's/\[DBNAME\]/${dbname}/g' wp-config.php && \
     sed -i 's/\[DBUSER\]/${dbuser}/g' wp-config.php && \
     sed -i 's/\[DBPASS\]/${dbpass}/g' wp-config.php && \
