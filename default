@@ -11,28 +11,28 @@ map $request_uri $cc {
     default      "public";
 }
 
+map $request_uri $ex {
+    ~^/wp-admin  "0";
+    default      "1y";
+}
+
 ##
 # Define server settings
 ##
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
-
     # listen 443 ssl default_server;
     # listen [::]:443 ssl default_server;
     
     charset UTF-8;
-
     root /var/www/WordPress;
     
     index index.php index.html index.htm;
-
     server_name _;
-
     location / {
         try_files $uri/ /index.php?$args;
     }
-
     location ~ \.php$ {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
@@ -41,8 +41,8 @@ server {
         include fastcgi.conf;
         add_header Cache-Control $cc; # as defined in the map
         access_log off;
+        expires $ex;
     }
-
     location ~* \.(js|css|svg|png|jpg|jpeg|gif|ico|eot|otf|ttf|woff)$ {
         add_header Access-Control-Allow-Origin *;
         add_header Cache-Control "public";
@@ -50,7 +50,6 @@ server {
         log_not_found off;
         expires 1y;
     }
-
     location ~ /\.ht {
            deny all;
     }
