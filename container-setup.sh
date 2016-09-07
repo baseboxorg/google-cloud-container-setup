@@ -15,7 +15,8 @@ docker build -t wordpress-hhvm-gcloud .
 
 ###
 # Setup DB and add arguments to container creation
-# echo "create database wordpress" |  mysql --host=[]IP] --user=[USR] --password=[PASS]
+# echo "create database wordpress" |  mysql --host=[IP] --user=[USR] --password=[PASS]
+# ALSO ADD USER ONLY FOR THIS DATABASE AND PASS IT BELOW TO THE CONTAINER
 # FIX PASS ISSUE
 ###
 
