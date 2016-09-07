@@ -10,18 +10,14 @@ then
     exit
 fi
 
+# Create mySQL instance with new users
+mysql --host=$2 --user=root --password=$6 -e "create database $3; GRANT ALL PRIVILEGES ON $3.* TO $4@localhost IDENTIFIED BY '$5'"
+
 # Build from the Dockerfile based on the env variables
 docker build -t wordpress-hhvm-gcloud .
 
-###
-# Setup DB and add arguments to container creation
-# echo "create database wordpress" |  mysql --host=[IP] --user=[USR] --password=[PASS]
-# ALSO ADD USER ONLY FOR THIS DATABASE AND PASS IT BELOW TO THE CONTAINER
-# FIX PASS ISSUE
-###
-
 # Get the container ID
-container=$(docker run -d wordpress-hhvm-gcloud --build-arg ssl_domain=$1 --build-arg dbhost=$2 --build-arg dbname=$3 --build-arg dbuser=$4 --build-arg dbpass=$5)
+container=$(docker run -d wordpress-hhvm-gcloud --build-arg ssl_domain=$1 --build-arg dbhost=$2 --build-arg dbname=$3 --build-arg dbuser=$4 --build-arg dbpass=$5 --build-arg site_title=$6 --build-arg admin_email=$7 --build-arg site_url=$8 --build-arg admin_user=$9 --build-arg admin_pass=$10)
 
 # Get the IP
 ip=$(docker inspect "$container" | grep -oP "(?<=\"IPAddress\": \")[^\"]+")
