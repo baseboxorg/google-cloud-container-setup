@@ -21,7 +21,7 @@ docker build -t wordpress-hhvm-gcloud .
 ###
 
 # Get the container ID
-container=$(docker run -d wordpress-hhvm-gcloud --build-arg ssl_domain=$1)
+container=$(docker run -d wordpress-hhvm-gcloud --build-arg ssl_domain=$1 --build-arg dbhost=$2 --build-arg dbname=$3 --build-arg dbuser=$4 --build-arg dbpass=$5)
 
 # Get the IP
 ip=$(docker inspect "$container" | grep -oP "(?<=\"IPAddress\": \")[^\"]+")
