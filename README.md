@@ -3,13 +3,16 @@
 ## Setup the gateway server
 
 0. Run as root: `sudo su`
-1. Go to home folder: `cd ~`
-2. Clone this repo: `git clone https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud.git`
-3. Go into dir: `cd Docker-multi-wordpress-hhvm-google-cloud`
-4. Make the bash files execable: `chmod +x ./*.sh`
-5. Setup the gateway by running: `./gateway-setup.sh`
+1. Install unzip: `apt-get update && apt-get install unzip -qq -y`
+2. Go to home folder: `cd ~`
+3. Get this repo: `wget https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/archive/master.zip`
+4. Unzip: `unzip master.zip`
+4. Remove master zip file: `rm master.zip`
+4. Go into dir: `cd Docker-multi-wordpress-hhvm-google-cloud-master`
+5. Make the bash files execable: `chmod +x ./*.sh`
+6. Setup the gateway by running: `./gateway-setup.sh`
 
-Or exec as one big command: `git clone https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud.git && cd Docker-multi-wordpress-hhvm-google-cloud && chmod +x ./*.sh && ./gateway-setup.sh`
+Or exec as one big command: `apt-get update && apt-get install unzip -qq -y && cd ~ && wget https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/archive/master.zip && unzip master.zip && rm master.zip && cd Docker-multi-wordpress-hhvm-google-cloud-master && chmod +x ./*.sh && ./gateway-setup.sh`
 
 ## Setup a new Wordpress container
 
