@@ -52,35 +52,33 @@ RUN apt-get install php7.0-fpm php7.0-mysql php7.0-mcrypt php-mbstring php-gette
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x wp-cli.phar && \
     mv wp-cli.phar /usr/local/bin/wp
-
-# Go into www dire
-RUN cd /var/www
  
 # Download Wordpress
-RUN wget https://github.com/WordPress/WordPress/archive/4.6-branch.zip && \
+RUN cd /var/www && \
+    wget https://github.com/WordPress/WordPress/archive/4.6-branch.zip && \
     unzip -q 4.6-branch.zip && \
     mv WordPress-4.6-branch WordPress && \
     rm 4.6-branch.zip && \
     cd WordPress
 
-# Download wpconfig
-RUN wget -q https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/master/wp-config.php
-
-# Update settings in wp-config file
-RUN sed -i 's/\[DBNAME\]/${dbname}/g' wp-config.php && \
+# Download wpconfig and Update settings in wp-config file
+RUN cd /var/www/WordPress && \
+    wget -q https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/master/wp-config.php && \
+    sed -i 's/\[DBNAME\]/${dbname}/g' wp-config.php && \
     sed -i 's/\[DBUSER\]/${dbuser}/g' wp-config.php && \
     sed -i 's/\[DBPASS\]/${dbpass}/g' wp-config.php && \
     sed -i 's/\[DBHOST\]/${dbhost}/g' wp-config.php
 
 # Install Wordpress (ADD USERNAME AND PASSWORD LATER)
-#RUN wp core install --allow-root --path=`/var/www/WordPress` --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
+RUN wp core install --allow-root --path=`/var/www/WordPress` --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
 
 # Install super cache, first set chmod 777 and set back later
-#RUN chmod 777 wp-config.php && \
-#    chmod 777 /var/www/WordPress/wp-content && \
-#    wp plugin install wp-super-cache --activate --allow-root && \
-#    chmod 755 wp-config.php && \
-#    chmod 755 /var/www/WordPress/wp-content
+RUN cd /var/www/WordPress && \
+    chmod 777 wp-config.php && \
+    chmod 777 /var/www/WordPress/wp-content && \
+    wp plugin install wp-super-cache --activate --allow-root && \
+    chmod 755 wp-config.php && \
+    chmod 755 /var/www/WordPress/wp-content
    
 # Set nginx config
 RUN cd /etc/nginx/sites-enabled/ && \
