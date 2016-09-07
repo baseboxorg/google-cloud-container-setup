@@ -27,7 +27,7 @@ RUN apt-get update -qq -y
 RUN apt-get install unzip -qq -y
 
 # Install NGINX and remove HTML dir
-RUN apt-get install nginx -qq -y
+RUN apt-get install nginx -qq -y && \
     rm -r /var/www/html
 
 # install PHP7
