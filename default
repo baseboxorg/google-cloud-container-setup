@@ -2,6 +2,15 @@
 # Wordpress nginx settings for Dorel websites
 # Author: Bob van Luijt
 ##
+
+##
+# Define a map for the Cache-Control in Google Cloud
+##
+map $request_uri $cc {
+        ~^/wp-admin  "no-store";
+        default      "public";
+}
+
 server {
         listen 80 default_server;
         listen [::]:80 default_server;
@@ -27,13 +36,9 @@ server {
             fastcgi_pass unix:/run/php/php7.0-fpm.sock;
             fastcgi_index index.php;
             include fastcgi.conf;
-            add_header Cache-Control "public";
+            add_header Cache-Control $cc; # as defined in the map
             access_log off;
         }
-
-        ###
-        # Replace this with the disabling of php caching in the wp-admin folder
-        ###
 
         location ~* \.(js|css|svg|png|jpg|jpeg|gif|ico|eot|otf|ttf|woff)$ {
             add_header Access-Control-Allow-Origin *;
