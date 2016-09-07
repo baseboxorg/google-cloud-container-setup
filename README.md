@@ -16,7 +16,7 @@ Or exec as one big command: `apt-get update && apt-get install unzip -qq -y && c
 
 ## Setup a new Wordpress container
 
-1. Run: `./container-setup.sh website.com dbhost_ip dbname_to_create dbuser_to_create dbpass_to_create dbpass_root`<br>
+1. Run: `./container-setup.sh website.com dbhost_ip dbname_to_create dbuser_to_create dbpass_to_create dbpass_root site_title admin_email site_url admin_user admin_pass`<br>
 _Important:<br>
 - only add the domainname with the top level domain and without www. for example: foobar.nl_
 - `dbhost_ip` = ip address of SQL server
