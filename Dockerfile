@@ -9,6 +9,16 @@ FROM ubuntu:16.04
 MAINTAINER Bob van Luijt
 
 # Set the arguments
+ARG site_title
+ENV site_title ${site_title}
+ARG admin_email
+ENV admin_email ${admin_email}
+ARG site_url
+ENV site_url ${site_url}
+ARG admin_user
+ENV admin_user ${admin_user}
+ARG admin_pass
+ENV admin_pass ${admin_pass}
 ARG ssl_domain
 ENV ssl_domain ${ssl_domain}
 ARG dbname
@@ -63,7 +73,7 @@ RUN sed -i 's/\[DBNAME\]/${dbname}/g' wp-config.php && \
     sed -i 's/\[DBHOST\]/${dbhost}/g' wp-config.php
 
 # Install Wordpress (ADD USERNAME AND PASSWORD LATER)
-RUN wp core install --allow-root --url=130.211.39.100 --title=Example --admin_user=root --admin_password=qwerty --admin_email=bob@kubrickolo.gy
+RUN wp core install --allow-root --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
 
 # Install super cache, first set chmod 777 and set back later
 RUN chmod 777 wp-config.php && \
