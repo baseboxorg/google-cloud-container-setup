@@ -49,9 +49,9 @@ RUN apt-get install php7.0-fpm php7.0-mysql php7.0-mcrypt php-mbstring php-gette
     phpenmod mbstring
 
 # Install wp-cli
-RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
-    chmod +x wp-cli.phar && \
-    mv wp-cli.phar /usr/local/bin/wp
+RUN wget -q -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -P ~ && \
+    chmod +x ~/wp-cli.phar && \
+    mv ~/wp-cli.phar /usr/local/bin/wp
  
 # Download Wordpress
 RUN wget -q -nv -P /var/www https://github.com/WordPress/WordPress/archive/4.6-branch.zip && \
