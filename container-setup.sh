@@ -98,16 +98,16 @@ container=$(docker run -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${WEBSI
 ip=$(docker inspect "$container" | jq '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${WEBSITE}.log
 
 # Create nginx setup
-touch /etc/nginx/sites-enabled/${WEBSITE}
-echo "server {" >> /etc/nginx/sites-enabled/${WEBSITE}
-echo "    server_name ${ACCESSURL};" >> /etc/nginx/sites-enabled/${WEBSITE}
-echo "    location / {" >> /etc/nginx/sites-enabled/${WEBSITE}
-echo "        proxy_pass http://$ip;" >> /etc/nginx/sites-enabled/${WEBSITE}
-echo "    }" >> /etc/nginx/sites-enabled/${WEBSITE}
-echo "}" >> /etc/nginx/sites-enabled/${WEBSITE}
+touch /etc/nginx/sites-enabled/${ACCESSURL}
+echo "server {" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "    server_name ${ACCESSURL};" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "    location / {" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "        proxy_pass http://$ip;" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "    }" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 
 # Reload nginx (note NOT restart, we don't want to disturb existing users)
 service nginx reload
 
 # Echo the IP
-echo "done with ip: $ip log saved to /var/log/wordpress-gcloud/${WEBSITE}.log | success"
+echo "done with ip: $ip log saved to /var/log/wordpress-gcloud/${ACCESSURL}.log | success"
