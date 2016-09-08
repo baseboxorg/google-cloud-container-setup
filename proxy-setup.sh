@@ -17,7 +17,7 @@ apt-get update -qq -y
 apt-get install mysql-client-core-5.7 -qq -y
 
 # Install jq for parsing jquery
-apt-get install jq -qq- y
+apt-get install jq -qq -y
 
 # Install Docker deps
 apt-get install apt-transport-https ca-certificates -qq -y
