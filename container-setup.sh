@@ -38,10 +38,6 @@ case $key in
     DBPASS="$2"
     shift # past argument
     ;;
-    -P|--dbpassroot)
-    DBPASSROOT="$2"
-    shift # past argument
-    ;;
     -t|--title)
     TITLE="$2"
     shift # past argument
@@ -77,7 +73,6 @@ if [ -z ${DBHOST} ];     then echo "-h or --dbhost is unset | abort";     exit 1
 if [ -z ${DBNAME} ];     then echo "-n or --dbname is unset | abort";     exit 1; fi
 if [ -z ${DBUSER} ];     then echo "-u or --dbuser is unset | abort";     exit 1; fi
 if [ -z ${DBPASS} ];     then echo "-p or --dbpass is unset | abort";     exit 1; fi
-if [ -z ${DBPASSROOT} ]; then echo "-P or --dbpassroot is unset | abort"; exit 1; fi
 if [ -z ${TITLE} ];      then echo "-t or --title is unset | abort";      exit 1; fi
 if [ -z ${ADMINEMAIL} ]; then echo "-e or --adminemail is unset | abort"; exit 1; fi
 if [ -z ${ADMINUSER} ];  then echo "-U or --adminuser is unset | abort";  exit 1; fi
@@ -87,17 +82,32 @@ if [ -z ${ADMINPASS} ];  then echo "-ap or --adminpass is unset | abort"; exit 1
 # Start the creation process
 ###
 
+# mkdir for logging
+mkdir -p /var/log/wordpress-gcloud
+
 # Create mySQL instance with new users
-mysql --host=${DBHOST} --user=root --password=${DBPASSROOT} -e "create database ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'"
+mysql --login-path=local -e "create database ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${WEBSITE}.log
 
 # Build from the Dockerfile based on the env variables
-docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} .
+docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${WEBSITE}.log
 
 # Get the container ID
-container=$(docker run -d wordpress-gcloud)
+container=$(docker run -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${WEBSITE}.log
 
 # Get the IP of the newly created container
-ip=$(docker inspect "$container" | grep -oP "(?<=\"IPAddress\": \")[^\"]+")
+ip=$(docker inspect "$container" | jq '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${WEBSITE}.log
+
+# Create nginx setup
+touch /etc/nginx/sites-enabled/${WEBSITE}
+echo "server {" >> /etc/nginx/sites-enabled/${WEBSITE}
+echo "    server_name ${ACCESSURL};" >> /etc/nginx/sites-enabled/${WEBSITE}
+echo "    location / {" >> /etc/nginx/sites-enabled/${WEBSITE}
+echo "        proxy_pass http://$ip;" >> /etc/nginx/sites-enabled/${WEBSITE}
+echo "    }" >> /etc/nginx/sites-enabled/${WEBSITE}
+echo "}" >> /etc/nginx/sites-enabled/${WEBSITE}
+
+# Reload nginx (note NOT restart, we don't want to disturb existing users)
+service nginx reload
 
 # Echo the IP
-echo "$ip"
+echo "done with ip: $ip log saved to /var/log/wordpress-gcloud/${WEBSITE}.log | success"
