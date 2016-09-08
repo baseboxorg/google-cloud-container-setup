@@ -1,26 +1,102 @@
-################################
-# Container setup by @bobvanluijt
-################################
+#!/bin/bash
+###############
+#
+# Bash script for creating new Docker containers and NGINX proxys
+# Author: Bob van Luijt
+# Readme: https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud
+#
+###############
 
-# Check if url is set
-regex='[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]'
-if [[ $1 != $regex ]]
-then 
-    echo "No url is setup"
-    exit
-fi
+###
+# Load all arguments
+###
+while [[ $# -gt 1 ]]
+do
+key="$1"
+case $key in
+    -w|--website)
+    WEBSITE="$2"
+    shift # past argument
+    ;;
+    -W|--accessurl)
+    ACCESSURL="$2"
+    shift # past argument
+    ;;
+    -h|--dbhost)
+    DBHOST="$2"
+    shift # past argument
+    ;;
+    -n|--dbname)
+    DBNAME="$2"
+    shift # past argument
+    ;;
+    -u|--dbuser)
+    DBUSER="$2"
+    shift # past argument
+    ;;
+    -p|--dbpass)
+    DBPASS="$2"
+    shift # past argument
+    ;;
+    -P|--dbpassroot)
+    DBPASSROOT="$2"
+    shift # past argument
+    ;;
+    -t|--title)
+    TITLE="$2"
+    shift # past argument
+    ;;
+    -e|--adminemail)
+    ADMINEMAIL="$2"
+    shift # past argument
+    ;;
+    -U|--adminuser)
+    ADMINUSER="$2"
+    shift # past argument
+    ;;
+    -ap|--adminpass)
+    ADMINPASS="$2"
+    shift # past argument
+    ;;
+    --default)
+    DEFAULT=YES
+    ;;
+    *)
+            # unknown option
+    ;;
+esac
+shift # past argument or value
+done
+
+###
+# Validate if needed arguments are available
+###
+if [ -z ${WEBSITE} ];    then echo "-w or --website is unset | abort";    exit 1; fi
+if [ -z ${ACCESSURL} ];  then echo "-W or --accessurl is unset | abort";  exit 1; fi
+if [ -z ${DBHOST} ];     then echo "-h or --dbhost is unset | abort";     exit 1; fi
+if [ -z ${DBNAME} ];     then echo "-n or --dbname is unset | abort";     exit 1; fi
+if [ -z ${DBUSER} ];     then echo "-u or --dbuser is unset | abort";     exit 1; fi
+if [ -z ${DBPASS} ];     then echo "-p or --dbpass is unset | abort";     exit 1; fi
+if [ -z ${DBPASSROOT} ]; then echo "-P or --dbpassroot is unset | abort"; exit 1; fi
+if [ -z ${TITLE} ];      then echo "-t or --title is unset | abort";      exit 1; fi
+if [ -z ${ADMINEMAIL} ]; then echo "-e or --adminemail is unset | abort"; exit 1; fi
+if [ -z ${ADMINUSER} ];  then echo "-U or --adminuser is unset | abort";  exit 1; fi
+if [ -z ${ADMINPASS} ];  then echo "-ap or --adminpass is unset | abort"; exit 1; fi
+
+###
+# Start the creation process
+###
 
 # Create mySQL instance with new users
-# mysql --host=$2 --user=root --password=$6 -e "create database $3; GRANT ALL PRIVILEGES ON $3.* TO $4@localhost IDENTIFIED BY '$5'"
-mysql --host=$2 --user=root --password=$6 -e "create database $3; GRANT ALL PRIVILEGES ON $3.* TO '$4'@'%' IDENTIFIED BY '$5'"
+mysql --host=${DBHOST} --user=root --password=${DBPASSROOT} -e "create database ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'"
 
 # Build from the Dockerfile based on the env variables
-docker build -t wordpress-gcloud --build-arg ssl_domain=$1 --build-arg dbhost=$2 --build-arg dbname=$3 --build-arg dbuser=$4 --build-arg dbpass=$5 --build-arg site_title=$6 --build-arg admin_email=$7 --build-arg site_url=$8 --build-arg admin_user=$9 --build-arg admin_pass=$10 .
+docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} .
 
 # Get the container ID
 container=$(docker run -d wordpress-gcloud)
 
-# Get the IP
+# Get the IP of the newly created container
 ip=$(docker inspect "$container" | grep -oP "(?<=\"IPAddress\": \")[^\"]+")
 
 # Echo the IP
