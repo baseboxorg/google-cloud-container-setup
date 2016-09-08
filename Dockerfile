@@ -91,4 +91,4 @@ EXPOSE 80
 EXPOSE 443
 
 # start nginx
-CMD ["nginx", "-g", "daemon off;"] # service php7.0-fpm start
+CMD ["nginx", "-g", "daemon off;"]
