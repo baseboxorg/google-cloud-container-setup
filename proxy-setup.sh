@@ -10,11 +10,16 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
+# ask for database ip host
+echo "What is the host ip of the database: "
+read DBHOST
+
 # Update
 apt-get update -qq -y
 
-# Install MYSQL client
-apt-get install mysql-client-core-5.7 -qq -y
+# Install MYSQL client and set pass and host
+apt-get install mysql-client-5.7 -qq -y
+mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --password
 
 # Install jq for parsing jquery
 apt-get install jq -qq -y
