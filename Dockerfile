@@ -60,7 +60,7 @@ RUN wget -q -nv -P /var/www https://github.com/WordPress/WordPress/archive/4.6-b
     rm /var/www/4.6-branch.zip
 
 # Download wpconfig and Update settings in wp-config file
-RUN wget -q -nv https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/master/wp-config.php -P /var/www/WordPress && \
+RUN wget -q -nv https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-google-cloud/master/wp-config.php -P /var/www/WordPress && \
     sed -i "s/\[DBNAME\]/${dbname}/g" /var/www/WordPress/wp-config.php && \
     sed -i "s/\[DBUSER\]/${dbuser}/g" /var/www/WordPress/wp-config.php && \
     sed -i "s/\[DBPASS\]/${dbpass}/g" /var/www/WordPress/wp-config.php && \
@@ -78,7 +78,7 @@ RUN chmod 777 /var/www/WordPress/wp-config.php && \
    
 # Set nginx config
 RUN rm /etc/nginx/sites-enabled/default && \
-    wget https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/master/default -P /etc/nginx/sites-enabled
+    wget https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-google-cloud/master/default -P /etc/nginx/sites-enabled
    
 # Install letsencrypt
 RUN apt-get install letsencrypt -qq -y
