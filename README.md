@@ -1,4 +1,6 @@
-# Docker setup for multi-Wordpress and HHVM on the Google Cloud setup
+# Docker setup for multi-Wordpress on the Google Cloud and CDN locations setup
+
+This setup will create lightning fast Wordpress installations on Google Cloud. This setup is not limited to only one solution.
 
 ## Setup the gateway server
 
