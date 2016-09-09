@@ -80,6 +80,16 @@ Example:<br>
 
 _note: this process might take a while when a completely new docker container is being created. Advice, grab a 🍷, 🍸, 🍾, and/or 🍺_
 
+## Configurate the loadbalancer to access your website
+1. Login to the Google Cloud console and select your project https://console.cloud.google.com
+2. Go into: Networking -> Load balancing
+3. Select the loadbalancer and click 'edit'
+4. Select 'Host and path rules'
+5. Add a host path rule:
+  5.1 Hosts: the hostname you added as `--accessurl` in the previous step.
+  5.2 Paths: the path to access your website, often just `/` also, add an asterix after the path: `/*`
+  5.3 Backend Service: Select the backend service
+
 ## Delete a container
 Removes database, nginx proxy files, etcetera.
 
