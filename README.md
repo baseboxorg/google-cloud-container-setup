@@ -14,13 +14,30 @@
 
 Or exec as one big command: `apt-get update && apt-get install unzip -qq -y && cd ~ && wget https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud/archive/master.zip && unzip master.zip && rm master.zip && cd Docker-multi-wordpress-hhvm-google-cloud-master && chmod +x ./*.sh && ./gateway-setup.sh`
 
-## Setup a new Wordpress container
+## Create a new Wordpress Container
+Create database, nginx proxy files, etcetera.
 
-1. Run: `./container-setup.sh website.com dbhost_ip dbname_to_create dbuser_to_create dbpass_to_create dbpass_root site_title admin_email site_url admin_user admin_pass`<br>
-_Important:<br>
-- only add the domainname with the top level domain and without www. for example: foobar.nl_
-- `dbhost_ip` = ip address of SQL server
-- `db_name_to_create` = the unique database name that should be created
-- `dbuser_to_create` = the unique database user that should be created
-- `dbpass_to_create` = the unique database user password that should be created
-- `dbpass_root` = the database password of the root user
+1. Run: `./container-setup.sh`<br>
+_Add the following items, the script will not run without these_
+- `--website` = website without www. For example: test.com
+- `--accessurl` = url that will be used to access the website.
+- `--dbhost` = hostname or ip of the database
+- `--dbname` = name of the Wordpress database
+- `--dbuser` = username for the Wordpress database
+- `--dbpass` = password for the Wordpress database
+- `--title` = the website title
+- `--adminemail` = email of the admin
+- `--adminuser` = admin username
+- `--adminpass` = admin pass
+
+Example:<br>
+./container-setup.sh --website test.com --accessurl www.test.com --dbhost 1.2.3.4 --dbname test --dbuser test --dbpass test567 --title Example --adminemail test@test.com --adminuser admin --adminpass test123
+
+## Delete a container
+Removes database, nginx proxy files, etcetera.
+
+1. Run: `./container-remove.sh -c CONTAINER_ID`
+
+You can find the container id by running `docker ps`.
+
+Please note that you should always add containers by using `container-setup.sh` and remove them by using `container-remove.sh`.
