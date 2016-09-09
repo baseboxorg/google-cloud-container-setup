@@ -90,6 +90,8 @@ _note: this process might take a while when a completely new docker container is
   5.2 Paths: the path to access your website, often just `/` also, add an asterix after the path: `/*`
   5.3 Backend Service: Select the backend service
 
+_Note: It might take some time before your CDN is up, give it about 30 sec..._
+
 ## Delete a container
 Removes database, nginx proxy files, etcetera.
 
