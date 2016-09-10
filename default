@@ -13,7 +13,7 @@ map $request_uri $cc {
 
 map $request_uri $ex {
     ~^/wp-admin  "0";
-    default      "1800s";
+    default      "900s";
 }
 
 ##
