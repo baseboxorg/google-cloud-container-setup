@@ -14,6 +14,7 @@ This setup will guide you through the setup of the Google Cloud. You can also us
     3.2.2 Boot Disk is Ubuntu 16.04 LTS<br>
     3.2.3 Only allow HTTPS access<br>
     3.2.4 Select SSD Bootdisk<br>
+    3.2.5 Enable the Cloud SQL and Compute APIs<br>
   3.2 Autoscaling = off<br>
   3.3 Number of instances = 1<br>
   3.4 No Health Check<br>
