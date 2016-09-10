@@ -14,15 +14,25 @@ fi
 echo "What is the host ip of the database: "
 read DBHOST
 
+# setup for gcloud (add debs)
+export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
+echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
 # Update
 apt-get update -qq -y
 
 # Install MYSQL client and set pass and host
 apt-get install mysql-client-5.7 -qq -y
+echo "What is the mysql root password: "
 mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --password
 
 # Install jq for parsing jquery
 apt-get install jq -qq -y
+
+# Install gcloud
+apt-get install google-cloud-sdk
+gcloud init
 
 # Install Docker deps
 apt-get install apt-transport-https ca-certificates -qq -y
