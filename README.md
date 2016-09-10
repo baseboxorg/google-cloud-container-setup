@@ -1,6 +1,8 @@
-# Docker setup for multi-Wordpress on the Google Cloud and CDN locations setup
+# multi-Wordpress (Docker) on Google CloudCDN locations setup
 
-This setup will create lightning fast Wordpress installations on Google Cloud. This setup is not limited to only one solution.
+This setup will create lightning fast Wordpress installations on one single computing instance in Google Cloud.
+
+Learn more about Google's infra: https://peering.google.com/#/infrastructure
 
 ## Setup Google Cloud
 This setup will guide you through the setup of the Google Cloud. You can also use Google's REST API or `gcloud` to achieve the same end-goal.
