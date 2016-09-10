@@ -8,31 +8,31 @@ This setup will guide you through the setup of the Google Cloud. You can also us
 1. Login to the Google Cloud console and select your project https://console.cloud.google.com
 2. Go into: Compute Engine -> Instance groups
 3. Create a group with the following settings:
-  3.1 Single Zone
-  3.2 Instance template, create a new template (or select this one if you already defined this)
-    3.2.1 Select a machine that is optimised on CPU.
-    3.2.2 Boot Disk is Ubuntu 16.04 LTS
-    3.2.3 Only allow HTTPS access
-    3.2.4 Select SSD Bootdisk
-  3.2 Autoscaling = off
-  3.3 Number of instances = 1
-  3.4 No Health Check
+  3.1 Single Zone<br>
+  3.2 Instance template, create a new template (or select this one if you already defined this)<br>
+    3.2.1 Select a machine that is optimised on CPU.<br>
+    3.2.2 Boot Disk is Ubuntu 16.04 LTS<br>
+    3.2.3 Only allow HTTPS access<br>
+    3.2.4 Select SSD Bootdisk<br>
+  3.2 Autoscaling = off<br>
+  3.3 Number of instances = 1<br>
+  3.4 No Health Check<br>
   3.5 Under advanced: check "Do not retry machine creation.".
 4. Go to SQL in the menu
 5. Create a second generation instance
-  5.1 Select Mysql 5.7
-  5.2 Select the _exact same_ region as your VM
-  5.3 Select SSD
-  5.4 Enable auto storage increasement
-  5.5 Create failover replica
+  5.1 Select Mysql 5.7<br>
+  5.2 Select the _exact same_ region as your VM<br>
+  5.3 Select SSD<br>
+  5.4 Enable auto storage increasement<br>
+  5.5 Create failover replica<br>
   5.6 Click "Add Network and add the IP of the newly created VM 
 6. Go to Networking in the menu.
 7. Go to Load balancing and create a new HTTP(S) Load Balancer
 8. Create a backend service
-  8.1 Select the instance group from above
-  8.2 Set the ports to 80 and 443
-  8.3 Set Maximum CPU utilization to 100
-  8.4 Create a health check that checks every 3600 seconds 
+  8.1 Select the instance group from above<br>
+  8.2 Set the ports to 80 and 443<br>
+  8.3 Set Maximum CPU utilization to 100<br>
+  8.4 Create a health check that checks every 3600 seconds <br>
   8.5 Enable the cloud CDN
 9. In Frontend Configuration, create an IP and assign it for both http and https.
 10. Add a certificate if you use https.
