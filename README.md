@@ -81,7 +81,7 @@ _Add the following items, the script will not run without these_
 Example:<br>
 `./container-setup.sh --website test.com --accessurl www.test.com --dbhost 1.2.3.4 --dbname test --dbuser test --dbpass test567 --title Example --adminemail test@test.com --adminuser admin --adminpass test123`
 
-_note: this process might take a while when a completely new docker container is being created. Advice, grab a 🍷, 🍸, 🍾, and/or 🍺_
+_note: this process might take a while when a completely new docker container is being created._
 
 ## Configurate the loadbalancer to access your website
 1. Login to the Google Cloud console and select your project https://console.cloud.google.com
