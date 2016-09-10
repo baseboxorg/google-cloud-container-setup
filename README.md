@@ -1,4 +1,4 @@
-# multi-Wordpress (Docker) on Google CloudCDN locations setup
+# Multi-Wordpress (Docker) setup on Google Cloud + Edge caching and services nodes.
 
 This setup will create lightning fast Wordpress installations on one single computing instance in Google Cloud.
 
