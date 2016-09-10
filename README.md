@@ -76,7 +76,7 @@ _Add the following items, the script will not run without these_
 - `--adminpass` = admin pass
 
 Example:<br>
-./container-setup.sh --website test.com --accessurl www.test.com --dbhost 1.2.3.4 --dbname test --dbuser test --dbpass test567 --title Example --adminemail test@test.com --adminuser admin --adminpass test123
+`./container-setup.sh --website test.com --accessurl www.test.com --dbhost 1.2.3.4 --dbname test --dbuser test --dbpass test567 --title Example --adminemail test@test.com --adminuser admin --adminpass test123`
 
 _note: this process might take a while when a completely new docker container is being created. Advice, grab a 🍷, 🍸, 🍾, and/or 🍺_
 
