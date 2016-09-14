@@ -59,12 +59,8 @@ RUN wget -q -nv -P /var/www https://github.com/WordPress/WordPress/archive/4.6-b
     mv /var/www/WordPress-4.6-branch /var/www/WordPress && \
     rm /var/www/4.6-branch.zip
 
-# Download wpconfig and Update settings in wp-config file
-RUN wget -q -nv https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-google-cloud/master/wp-config.php -P /var/www/WordPress && \
-    sed -i "s/\[DBNAME\]/${dbname}/g" /var/www/WordPress/wp-config.php && \
-    sed -i "s/\[DBUSER\]/${dbuser}/g" /var/www/WordPress/wp-config.php && \
-    sed -i "s/\[DBPASS\]/${dbpass}/g" /var/www/WordPress/wp-config.php && \
-    sed -i "s/\[DBHOST\]/${dbhost}/g" /var/www/WordPress/wp-config.php
+# Config Wordpress
+RUN wp core config --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost}
 
 # Install Wordpress (ADD USERNAME AND PASSWORD LATER)
 RUN wp core install --allow-root --path=/var/www/WordPress --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
