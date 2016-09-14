@@ -34,14 +34,10 @@ ENV dbhost ${dbhost}
 RUN apt-get update -qq -y
 
 # Install apt-utils
-RUN apt-get install apt-utils curl wget -qq -y
+RUN apt-get install apt-utils unzip wget nginx -qq -y
 
-# Install unzip
-RUN apt-get install unzip -qq -y
-
-# Install NGINX and remove HTML dir
-RUN apt-get install nginx -qq -y && \
-    rm -r /var/www/html
+# remove HTML dir
+RUN rm -r /var/www/html
 
 # install PHP7
 RUN apt-get install php7.0-fpm php7.0-mysql php7.0-mcrypt php-mbstring php-gettext -qq -y && \
@@ -73,8 +69,8 @@ RUN chmod 777 /var/www/WordPress/wp-config.php && \
     chmod 755 /var/www/WordPress/wp-content
    
 # Set nginx config
-RUN rm /etc/nginx/sites-enabled/default && \
-    wget https://raw.githubusercontent.com/bobvanluijt/Docker-multi-wordpress-google-cloud/master/default -P /etc/nginx/sites-enabled
+RUN rm /etc/nginx/sites-enabled/default
+ADD default /etc/nginx/sites-enabled/default
    
 # Install letsencrypt
 RUN apt-get install letsencrypt -qq -y
@@ -82,9 +78,16 @@ RUN apt-get install letsencrypt -qq -y
 # setup the script
 # RUN letsencrypt certonly --webroot -w /var/www/WordPress -d ${ssl_domain} -d www.${ssl_domain}
 
+# remove unused things
+RUN apt-get purge wget && \
+    apt-get autoremove
+
 # Expose port 80 and 443
 EXPOSE 80
 EXPOSE 443
+
+# start PHP FPM
+ENTRYPOINT ["/usr/sbin/php-fpm", "-F"]
 
 # start nginx
 CMD ["nginx", "-g", "daemon off;"]
