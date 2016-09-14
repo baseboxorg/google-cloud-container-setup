@@ -87,7 +87,7 @@ EXPOSE 80
 EXPOSE 443
 
 # start PHP FPM
-ENTRYPOINT ["/usr/sbin/php-fpm", "-F"]
+ENTRYPOINT ["/usr/sbin/php-fpm7.0", "-F"]
 
 # start nginx
 CMD ["nginx", "-g", "daemon off;"]
