@@ -34,7 +34,7 @@ ENV dbhost ${dbhost}
 RUN apt-get update -qq -y
 
 # Install apt-utils
-RUN apt-get install apt-utils unzip wget nginx -qq -y
+RUN apt-get install apt-utils unzip wget nginx mysql-client -qq -y
 
 # remove HTML dir
 RUN rm -r /var/www/html
@@ -56,7 +56,7 @@ RUN wget -q -nv -P /var/www https://github.com/WordPress/WordPress/archive/4.6-b
     rm /var/www/4.6-branch.zip
 
 # Config Wordpress
-RUN wp core config --allow-root --path=/var/www/WordPress --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost}
+RUN wp core config --path=/var/www/WordPress --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
 
 # Install Wordpress (ADD USERNAME AND PASSWORD LATER)
 RUN wp core install --allow-root --path=/var/www/WordPress --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
@@ -79,8 +79,8 @@ RUN apt-get install letsencrypt -qq -y
 # RUN letsencrypt certonly --webroot -w /var/www/WordPress -d ${ssl_domain} -d www.${ssl_domain}
 
 # remove unused things
-RUN apt-get purge wget && \
-    apt-get autoremove
+RUN apt-get purge wget -qq -y && \
+    apt-get autoremove -qq -y
 
 # Expose port 80 and 443
 EXPOSE 80
