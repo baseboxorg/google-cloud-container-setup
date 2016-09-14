@@ -95,7 +95,7 @@ docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg
 container=$(docker run -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${WEBSITE}.log
 
 # Get the IP of the newly created container
-ip=$(docker inspect "$container" | jq '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${WEBSITE}.log
+ip=$(docker inspect "$container" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${WEBSITE}.log
 
 # Create nginx setup
 touch /etc/nginx/sites-enabled/${ACCESSURL}
