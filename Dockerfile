@@ -56,7 +56,7 @@ RUN wget -q -nv -P /var/www https://github.com/WordPress/WordPress/archive/4.6-b
     rm /var/www/4.6-branch.zip
 
 # Config Wordpress
-RUN wp core config --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost}
+RUN wp core config --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
 
 # Install Wordpress (ADD USERNAME AND PASSWORD LATER)
 RUN wp core install --allow-root --path=/var/www/WordPress --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
