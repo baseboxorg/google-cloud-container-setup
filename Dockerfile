@@ -34,7 +34,7 @@ ENV dbhost ${dbhost}
 RUN apt-get update -qq -y
 
 # Install security updates
-RUN apt-get unattended-upgrades -d -qq -y
+RUN apt-get unattended-upgrades -qq -y
 
 # Install apt-utils
 RUN apt-get install apt-utils unzip wget nginx mysql-client -qq -y
