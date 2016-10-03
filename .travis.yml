@@ -8,7 +8,6 @@
  #
  # Description: Installs a complete Magento 2 installation in travis and validates the APIs
  # Author: Bob van Luijt
- #
 ###
 
 dist: trusty
