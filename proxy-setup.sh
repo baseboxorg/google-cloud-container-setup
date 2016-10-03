@@ -1,8 +1,8 @@
+#!/bin/bash
+
 ################################
 # Gateway setup by @bobvanluijt
 ################################
-
-#!/bin/bash
 
 ###
 # Load all arguments
@@ -32,7 +32,7 @@ done
 ###
 # Validate if needed arguments are available
 ###
-if [ -z ${DBHOST} ]; then echo "-h or --dbhost is unset | abort";    exit 1; fi
+if [ -z ${DBHOST} ]; then echo "-h or --dbhost is unset | abort";  exit 1; fi
 if [ -z ${DBPASS} ]; then echo "-p or --dbpass is unset | abort";  exit 1; fi
 
 # Run the script as root
@@ -54,8 +54,7 @@ apt-get unattended-upgrades -d -qq -y
 
 # Install MYSQL client and set pass and host
 apt-get install mysql-client-5.7 -qq -y
-echo "What is the mysql root password: "
-mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --password
+mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --password=${DBPASS}
 
 # Install jq for parsing jquery
 apt-get install jq -qq -y
