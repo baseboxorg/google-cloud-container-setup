@@ -61,10 +61,11 @@ mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --passwo
 apt-get install jq -qq -y
 
 # Install gcloud
-curl https://sdk.cloud.google.com | bash
-exec -l $SHELL
+mdkir gcloud
+wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-128.0.0-linux-x86_64.tar.gz
+tar -xzf google-cloud-sdk-128.0.0-linux-x86_64.tar.gz -C gcloud
+cd gcloud
 CLOUDSDK_CORE_DISABLE_PROMPTS=1 ./install.sh
-gcloud init
 
 # Install Docker deps
 apt-get install apt-transport-https ca-certificates -qq -y
