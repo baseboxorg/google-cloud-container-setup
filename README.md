@@ -52,7 +52,7 @@ SSH into the VM that is created and setup the gateway server as mentioned below.
 4. Remove master zip file: `rm master.zip`
 4. Go into dir: `cd Docker-multi-wordpress-google-cloud-master`
 5. Make the bash files execable: `chmod +x ./*.sh`
-6. Setup the gateway by running: `./proxy-setup.sh`
+6. Setup the gateway by running: `./proxy-setup.sh --dbhost xxx --dbpass xxx`
 7. The setup will ask for the database host (the ip of the DB)
 8. The setup will ask for the database root password, you need to type this for security reasons
 

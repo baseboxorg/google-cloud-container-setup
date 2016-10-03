@@ -34,6 +34,6 @@ before_install:
   - cd Docker-multi-wordpress-google-cloud-master
   - sudo chmod +x ./*.sh
   # proxy-setup.sh is here 
-  - sudo printf 'localhost\n\n1\n' | sudo ./proxy-setup.sh
+  - sudo ./proxy-setup.sh --dbhost localhost --dbpass ''
   # Run the installer script
   - sudo ./container-setup.sh --website test.com --accessurl www.test.com --dbhost localhost --dbname test --dbuser test --dbpass test567 --title Example --adminemail test@test.com --adminuser admin --adminpass test123

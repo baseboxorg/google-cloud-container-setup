@@ -4,15 +4,42 @@
 
 #!/bin/bash
 
+###
+# Load all arguments
+###
+while [[ $# -gt 1 ]]
+do
+key="$1"
+case $key in
+    -h|--dbhost)
+    DBHOST="$2"
+    shift # past argument
+    ;;
+    -p|--dbpass)
+    DBPASS="$2"
+    shift # past argument
+    ;;
+    --default)
+    DEFAULT=YES
+    ;;
+    *)
+            # unknown option
+    ;;
+esac
+shift # past argument or value
+done
+
+###
+# Validate if needed arguments are available
+###
+if [ -z ${DBHOST} ]; then echo "-h or --dbhost is unset | abort";    exit 1; fi
+if [ -z ${DBPASS} ]; then echo "-p or --dbpass is unset | abort";  exit 1; fi
+
 # Run the script as root
 if [ "$EUID" -ne 0 ]
   then echo "Please run as root"
   exit
 fi
-
-# ask for database ip host
-echo "What is the host ip of the database: "
-read DBHOST
 
 # setup for gcloud (add debs)
 export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
@@ -34,7 +61,9 @@ mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --passwo
 apt-get install jq -qq -y
 
 # Install gcloud
-apt-get install google-cloud-sdk
+curl https://sdk.cloud.google.com | bash
+exec -l $SHELL
+CLOUDSDK_CORE_DISABLE_PROMPTS=1 ./install.sh
 gcloud init
 
 # Install Docker deps
