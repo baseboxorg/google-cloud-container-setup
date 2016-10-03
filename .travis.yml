@@ -26,11 +26,6 @@ before_install:
   # Install proxy
   - sudo apt-get update
   - sudo apt-get install unzip -qq -y
-  - cd ~ 
-  - wget https://github.com/bobvanluijt/Docker-multi-wordpress-google-cloud/archive/master.zip
-  - unzip master.zip
-  - rm master.zip
-  - cd Docker-multi-wordpress-google-cloud-master
   - sudo chmod +x ./*.sh
   # proxy-setup.sh is here 
   - sudo ./proxy-setup.sh --dbhost localhost --dbpass ''
