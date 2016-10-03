@@ -24,7 +24,7 @@ addons:
   
 before_install:
   # Set travis mysql pass to qwerty
-  - mysql -u root -e 'SET PASSWORD FOR user = PASSWORD("qwerty");'
+  - mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'qwerty';"
   # Install proxy
   - sudo apt-get update
   - sudo apt-get install unzip -qq -y
