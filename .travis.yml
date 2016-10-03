@@ -31,7 +31,7 @@ before_install:
   - wget https://github.com/bobvanluijt/Docker-multi-wordpress-google-cloud/archive/master.zip
   - unzip master.zip
   - rm master.zip
-  - cd Docker-multi-wordpress-google-cloud-maste
+  - cd Docker-multi-wordpress-google-cloud-master
   - sudo chmod +x ./*.sh
   # proxy-setup.sh is here 
   - sudo printf 'localhost\n\n1\n' | ./proxy-setup.sh
