@@ -23,11 +23,13 @@ addons:
     - mysql-client-5.6
   
 before_install:
+  # Set travis mysql pass to qwerty
+  - mysql -u root -e 'SET PASSWORD FOR user = PASSWORD("qwerty");'
   # Install proxy
   - sudo apt-get update
   - sudo apt-get install unzip -qq -y
   - sudo chmod +x ./*.sh
   # proxy-setup.sh is here 
-  - sudo ./proxy-setup.sh --dbhost localhost --dbpass ''
+  - sudo ./proxy-setup.sh --dbhost localhost --dbpass qwerty
   # Run the installer script
   - sudo ./container-setup.sh --website test.com --accessurl www.test.com --dbhost localhost --dbname test --dbuser test --dbpass test567 --title Example --adminemail test@test.com --adminuser admin --adminpass test123
