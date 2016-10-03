@@ -86,8 +86,5 @@ RUN apt-get purge wget -qq -y && \
 EXPOSE 80
 EXPOSE 443
 
-# start PHP FPM
-ENTRYPOINT ["/usr/sbin/php-fpm7.0", "-c"]
-
-# start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# start nginx and php7.0-fpm
+CMD service php7.0-fpm start && nginx -g "daemon off;"
