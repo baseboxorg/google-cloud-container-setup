@@ -85,10 +85,11 @@ if [ -z ${ADMINPASS} ];  then echo "-ap or --adminpass is unset | abort"; exit 1
 ###
 
 # 1. Validate url
-[[ $ACCESSURL =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$ ]] || {
-    echo "ERROR - This domain name looks not to be valid. Is formatted subdomain.domain.toplevel? Like www.foobar.com? An IP is not valid."
+if ! echo ${ACCESSURL} | grep -q -P "^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$"; then
+    echo "ERROR - This domain name looks not to be valid. Is formatted subdomain.domain.toplevel? Like www.foobar.c
+om? An IP is not valid."
     exit 1
-}
+fi
 
 # 2. Validate Wordpress dir
 if [ -d "/var/wordpress-content/${ACCESSURL}" ]; then
