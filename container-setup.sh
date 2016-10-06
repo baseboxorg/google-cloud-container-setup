@@ -98,10 +98,11 @@ if [ -d "/var/wordpress-content/${ACCESSURL}" ]; then
 fi
 
 # 3. Validate database
-mysql --login-path=local root -e 'use ${DBNAME};' || {
-    echo "ERROR - It looks like this database already exists. You can remove it or reconnect to it by using the corresponding bash scripts."
+VALIDATESQL=`mysqlshow "${VALIDATESQL}" > /dev/null 2>&1 && echo "true" || echo "false"`
+if [ "${VALIDATESQL}" == "true" ]; then
+    echo "ERROR - It seems that this website already exists. You can reconnect it or remove it by using the corresponding bash scripts."
     exit 1
-}
+fi
 
 ###
 # Start the creation process
