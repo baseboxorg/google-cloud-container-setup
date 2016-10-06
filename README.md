@@ -50,13 +50,13 @@ SSH into the VM that is created and setup the gateway server as mentioned below.
 3. Get this repo: `wget https://github.com/dorel/wordpress-container-setup/archive/master.zip`
 4. Unzip: `unzip master.zip`
 4. Remove master zip file: `rm master.zip`
-4. Go into dir: `cd wordpress-container-setup`
+4. Go into dir: `cd wordpress-container-setup-master`
 5. Make the bash files execable: `chmod +x ./*.sh`
 6. Setup the gateway by running: `./proxy-setup.sh`
 7. The setup will ask for the database host (the ip of the DB)
 8. The setup will ask for the database root password, you need to type this for security reasons
 
-Or exec as one big command: `apt-get update && apt-get upgrade -qq -y && apt-get install unzip -qq -y && cd ~ && wget https://github.com/dorel/wordpress-container-setup/archive/master.zip && unzip master.zip && rm master.zip && cd wordpress-container-setup && chmod +x ./*.sh && ./proxy-setup.sh`
+Or exec as one big command: `apt-get update && apt-get upgrade -qq -y && apt-get install unzip -qq -y && cd ~ && wget https://github.com/dorel/wordpress-container-setup/archive/master.zip && unzip master.zip && rm master.zip && cd wordpress-container-setup-master && chmod +x ./*.sh && ./proxy-setup.sh`
 
 When the setup is done, you can create a container as mentioned below.
 
@@ -69,19 +69,16 @@ _Note, make sure the domainname you are about to setup, has DNS A-records set to
 _Add the following items, the script will not run without these_
 - `--website` = website without www. For example: test.com
 - `--accessurl` = url that will be used to access the website.
-- `--dbhost` = hostname or ip of the database
-- `--dbname` = unique name of the Wordpress database (this database should not exist)
-- `--dbuser` = unique username for the Wordpress database
-- `--dbpass` = unique password for the Wordpress database
 - `--title` = the website title
 - `--adminemail` = email of the admin
 - `--adminuser` = admin username
 - `--adminpass` = admin pass
 
 Example:<br>
-`./container-setup.sh --website test.com --accessurl www.test.com --dbhost 1.2.3.4 --dbname test --dbuser test --dbpass test567 --title Example --adminemail test@test.com --adminuser admin --adminpass test123`
+`./container-setup.sh --website test.com --accessurl www.test.com --title Example --adminemail test@test.com --adminuser admin --adminpass test123`
 
-_note: this process might take a while when a completely new docker container is being created._
+_note I: this process might take a while when a completely new docker container is being created._
+_note II: databases and logins and passes are created automatically_
 
 ## Configurate the loadbalancer to access your website
 1. Login to the Google Cloud console and select your project https://console.cloud.google.com
