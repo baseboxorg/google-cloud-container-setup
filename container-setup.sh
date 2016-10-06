@@ -26,18 +26,6 @@ case $key in
     DBHOST="$2"
     shift # past argument
     ;;
-    -n|--dbname)
-    DBNAME="$2"
-    shift # past argument
-    ;;
-    -u|--dbuser)
-    DBUSER="$2"
-    shift # past argument
-    ;;
-    -p|--dbpass)
-    DBPASS="$2"
-    shift # past argument
-    ;;
     -t|--title)
     TITLE="$2"
     shift # past argument
@@ -70,13 +58,14 @@ done
 if [ -z ${WEBSITE} ];    then echo "-w or --website is unset | abort";    exit 1; fi
 if [ -z ${ACCESSURL} ];  then echo "-W or --accessurl is unset | abort";  exit 1; fi
 if [ -z ${DBHOST} ];     then echo "-h or --dbhost is unset | abort";     exit 1; fi
-if [ -z ${DBNAME} ];     then echo "-n or --dbname is unset | abort";     exit 1; fi
-if [ -z ${DBUSER} ];     then echo "-u or --dbuser is unset | abort";     exit 1; fi
-if [ -z ${DBPASS} ];     then echo "-p or --dbpass is unset | abort";     exit 1; fi
 if [ -z ${TITLE} ];      then echo "-t or --title is unset | abort";      exit 1; fi
 if [ -z ${ADMINEMAIL} ]; then echo "-e or --adminemail is unset | abort"; exit 1; fi
 if [ -z ${ADMINUSER} ];  then echo "-U or --adminuser is unset | abort";  exit 1; fi
 if [ -z ${ADMINPASS} ];  then echo "-ap or --adminpass is unset | abort"; exit 1; fi
+
+DBNAME=$(echo "www.wxs.nl" | tr . _)
+DBUSER=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+DBPASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 
 ###
 # 1. Validate if the domainname is valid (for letsencrypt)
@@ -85,11 +74,10 @@ if [ -z ${ADMINPASS} ];  then echo "-ap or --adminpass is unset | abort"; exit 1
 ###
 
 # 1. Validate url
-if ! echo ${ACCESSURL} | grep -q -P "^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$"; then
-    echo "ERROR - This domain name looks not to be valid. Is formatted subdomain.domain.toplevel? Like www.foobar.c
-om? An IP is not valid."
+[[ $ACCESSURL =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$ ]] || {
+    echo "ERROR - This domain name looks not to be valid. Is formatted subdomain.domain.toplevel? Like www.foobar.com? An IP is not valid."
     exit 1
-fi
+}
 
 # 2. Validate Wordpress dir
 if [ -d "/var/wordpress-content/${ACCESSURL}" ]; then
@@ -98,11 +86,10 @@ if [ -d "/var/wordpress-content/${ACCESSURL}" ]; then
 fi
 
 # 3. Validate database
-VALIDATESQL=`mysqlshow "${VALIDATESQL}" > /dev/null 2>&1 && echo "true" || echo "false"`
-if [ "${VALIDATESQL}" == "true" ]; then
-    echo "ERROR - It seems that this website already exists. You can reconnect it or remove it by using the corresponding bash scripts."
+mysql --login-path=local root -e 'use ${DBNAME};' || {
+    echo "ERROR - It looks like this database already exists. You can remove it or reconnect to it by using the corresponding bash scripts."
     exit 1
-fi
+}
 
 ###
 # Start the creation process
@@ -118,10 +105,10 @@ mkdir -m 777 -p /var/wordpress-content/${ACCESSURL}
 mysql --login-path=local -e "create database ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Build from the Dockerfile based on the env variables
-docker build --no-cache -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Build container, get the container ID and connect the dirs
-container=$(docker run -d wordpress-gcloud -v /var/wordpress-content/${ACCESSURL}:/var/www/WordPress/wp-content) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+container=$(docker run -v /var/wordpress-content/${ACCESSURL}:/var/www/WordPress/wp-content -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Copy the container wp-content data onto the volume
 docker exec $container /bin/sh -c "cp -a /var/www/WordPress/wp-content_tmp/. /var/www/WordPress/wp-content/ && rm -R /var/www/WordPress/wp-content_tmp"
