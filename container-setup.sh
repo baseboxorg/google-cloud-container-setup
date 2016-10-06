@@ -118,7 +118,7 @@ mkdir -m 777 -p /var/wordpress-content/${ACCESSURL}
 mysql --login-path=local -e "create database ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Build from the Dockerfile based on the env variables
-docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+docker build --no-cache -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Build container, get the container ID and connect the dirs
 container=$(docker run -d wordpress-gcloud -v /var/wordpress-content/${ACCESSURL}:/var/www/WordPress/wp-content) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
