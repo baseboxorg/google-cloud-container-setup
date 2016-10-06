@@ -50,13 +50,13 @@ SSH into the VM that is created and setup the gateway server as mentioned below.
 3. Get this repo: `wget https://github.com/dorel/wordpress-container-setup/archive/master.zip`
 4. Unzip: `unzip master.zip`
 4. Remove master zip file: `rm master.zip`
-4. Go into dir: `cd wordpress-container-setup`
+4. Go into dir: `cd wordpress-container-setup-master`
 5. Make the bash files execable: `chmod +x ./*.sh`
 6. Setup the gateway by running: `./proxy-setup.sh`
 7. The setup will ask for the database host (the ip of the DB)
 8. The setup will ask for the database root password, you need to type this for security reasons
 
-Or exec as one big command: `apt-get update && apt-get upgrade -qq -y && apt-get install unzip -qq -y && cd ~ && wget https://github.com/dorel/wordpress-container-setup/archive/master.zip && unzip master.zip && rm master.zip && cd wordpress-container-setup && chmod +x ./*.sh && ./proxy-setup.sh`
+Or exec as one big command: `apt-get update && apt-get upgrade -qq -y && apt-get install unzip -qq -y && cd ~ && wget https://github.com/dorel/wordpress-container-setup/archive/master.zip && unzip master.zip && rm master.zip && cd wordpress-container-setup-master && chmod +x ./*.sh && ./proxy-setup.sh`
 
 When the setup is done, you can create a container as mentioned below.
 
