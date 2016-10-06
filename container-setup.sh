@@ -79,23 +79,50 @@ if [ -z ${ADMINUSER} ];  then echo "-U or --adminuser is unset | abort";  exit 1
 if [ -z ${ADMINPASS} ];  then echo "-ap or --adminpass is unset | abort"; exit 1; fi
 
 ###
+# 1. Validate if the domainname is valid (for letsencrypt)
+# 2. Validate if it is likely that this setup already exists. This is done by checking the wp-content directory
+# 3. Validate if the database with this name already exists
+###
+
+# 1. Validate url
+[[ $ACCESSURL =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$ ]] || {
+    echo "ERROR - This domain name looks not to be valid. Is formatted subdomain.domain.toplevel? Like www.foobar.com? An IP is not valid."
+    exit 1
+}
+
+# 2. Validate Wordpress dir
+if [ -d "/var/wordpress-content/${ACCESSURL}" ]; then
+    echo "ERROR - It seems that this website already exists. You can reconnect it or remove it by using the corresponding bash scripts."
+    exit 1
+fi
+
+# 3. Validate database
+mysql --login-path=local root -e 'use ${DBNAME};' || {
+    echo "ERROR - It looks like this database already exists. You can remove it or reconnect to it by using the corresponding bash scripts."
+    exit 1
+}
+
+###
 # Start the creation process
 ###
 
 # mkdir for logging
 mkdir -p /var/log/wordpress-gcloud
 
+# mkdir for wp-content
+mkdir -m 777 -p /var/wordpress-content/${ACCESSURL}
+
 # Create mySQL instance with new users
-mysql --login-path=local -e "create database ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${WEBSITE}.log
+mysql --login-path=local -e "create database ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Build from the Dockerfile based on the env variables
-docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${WEBSITE}.log
+docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Get the container ID
-container=$(docker run -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${WEBSITE}.log
+container=$(docker run -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Get the IP of the newly created container
-ip=$(docker inspect "$container" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${WEBSITE}.log
+ip=$(docker inspect "$container" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Create nginx setup
 touch /etc/nginx/sites-enabled/${ACCESSURL}
