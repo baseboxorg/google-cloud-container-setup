@@ -1,6 +1,10 @@
-################################
-# Docker setup for Wordpress in multiple container setup by @bobvanluijt
-################################
+###############
+#
+# Docker setup for Wordpress in multiple container setup
+# Author: Bob van Luijt
+# Readme: https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud
+#
+###############
 
 # Set the base image to Ubuntu
 FROM ubuntu:16.04
@@ -67,6 +71,9 @@ RUN chmod 777 /var/www/WordPress/wp-config.php && \
     wp plugin install wp-super-cache --path=/var/www/WordPress --activate --allow-root && \
     chmod 755 /var/www/WordPress/wp-config.php && \
     chmod 755 /var/www/WordPress/wp-content
+
+# IMPORTANT: The wp-content dir is renamed so it can be remounted in the docker run with an external directory
+RUN mv -R /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
    
 # Set nginx config
 RUN rm /etc/nginx/sites-enabled/default

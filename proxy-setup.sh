@@ -1,8 +1,11 @@
-################################
-# Gateway setup by @bobvanluijt
-################################
-
 #!/bin/bash
+###############
+#
+# Bash script for creating main proxy server and holder of the docker containers.
+# Author: Bob van Luijt
+# Readme: https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud
+#
+###############
 
 # Run the script as root
 if [ "$EUID" -ne 0 ]
@@ -75,3 +78,6 @@ apt-get install nginx -qq -y
 
 # Install SSL
 apt-get install letsencrypt -qq -y
+
+# Make main dir to connect Wordpress wp-content directories to
+mkdir -m 777 -p /var/wordpress-content
