@@ -54,10 +54,8 @@ RUN wget -q -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp
     mv ~/wp-cli.phar /usr/local/bin/wp
  
 # Download Wordpress
-RUN wget -q -nv -P /var/www https://github.com/WordPress/WordPress/archive/4.6-branch.zip && \
-    unzip -q /var/www/4.6-branch.zip -d /var/www && \
-    mv /var/www/WordPress-4.6-branch /var/www/WordPress && \
-    rm /var/www/4.6-branch.zip
+RUN mkdir /var/www/WordPress &&
+    wp core download --path=/var/www/WordPress --allow-root
 
 # Config Wordpress
 RUN wp core config --path=/var/www/WordPress --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
