@@ -22,10 +22,6 @@ case $key in
     ACCESSURL="$2"
     shift # past argument
     ;;
-    -h|--dbhost)
-    DBHOST="$2"
-    shift # past argument
-    ;;
     -t|--title)
     TITLE="$2"
     shift # past argument
@@ -57,12 +53,16 @@ done
 ###
 if [ -z ${WEBSITE} ];    then echo "-w or --website is unset | abort";    exit 1; fi
 if [ -z ${ACCESSURL} ];  then echo "-W or --accessurl is unset | abort";  exit 1; fi
-if [ -z ${DBHOST} ];     then echo "-h or --dbhost is unset | abort";     exit 1; fi
 if [ -z ${TITLE} ];      then echo "-t or --title is unset | abort";      exit 1; fi
 if [ -z ${ADMINEMAIL} ]; then echo "-e or --adminemail is unset | abort"; exit 1; fi
 if [ -z ${ADMINUSER} ];  then echo "-U or --adminuser is unset | abort";  exit 1; fi
 if [ -z ${ADMINPASS} ];  then echo "-ap or --adminpass is unset | abort"; exit 1; fi
 
+###
+# Create or select all DB related info
+###
+DBINFO=$(mysql_config_editor print --login-path=local)
+DBHOST=${DBINFO#*host =}
 DBNAME=$(echo "www.wxs.nl" | tr . _)
 DBUSER=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 DBPASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)

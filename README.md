@@ -69,19 +69,16 @@ _Note, make sure the domainname you are about to setup, has DNS A-records set to
 _Add the following items, the script will not run without these_
 - `--website` = website without www. For example: test.com
 - `--accessurl` = url that will be used to access the website.
-- `--dbhost` = hostname or ip of the database
-- `--dbname` = unique name of the Wordpress database (this database should not exist)
-- `--dbuser` = unique username for the Wordpress database
-- `--dbpass` = unique password for the Wordpress database
 - `--title` = the website title
 - `--adminemail` = email of the admin
 - `--adminuser` = admin username
 - `--adminpass` = admin pass
 
 Example:<br>
-`./container-setup.sh --website test.com --accessurl www.test.com --dbhost 1.2.3.4 --dbname test --dbuser test --dbpass test567 --title Example --adminemail test@test.com --adminuser admin --adminpass test123`
+`./container-setup.sh --website test.com --accessurl www.test.com --title Example --adminemail test@test.com --adminuser admin --adminpass test123`
 
-_note: this process might take a while when a completely new docker container is being created._
+_note I: this process might take a while when a completely new docker container is being created._
+_note II: databases and logins and passes are created automatically_
 
 ## Configurate the loadbalancer to access your website
 1. Login to the Google Cloud console and select your project https://console.cloud.google.com
