@@ -73,7 +73,7 @@ RUN chmod 777 /var/www/WordPress/wp-config.php && \
     chmod 755 /var/www/WordPress/wp-content
 
 # IMPORTANT: The wp-content dir is renamed so it can be remounted in the docker run with an external directory
-RUN mv -R /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
+RUN mv /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
    
 # Set nginx config
 RUN rm /etc/nginx/sites-enabled/default
