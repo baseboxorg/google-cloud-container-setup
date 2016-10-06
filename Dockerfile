@@ -77,6 +77,23 @@ RUN mv /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
 RUN rm /etc/nginx/sites-enabled/default
 ADD default /etc/nginx/sites-enabled/default
    
+# Install Redis
+RUN apt-get install build-essential tcl -qq -y && \
+    mkdir -p /tmp && \
+    cd /tmp && \
+    wget http://download.redis.io/redis-stable.tar.gz && \
+    tar xzvf redis-stable.tar.gz && \
+    cd redis-stable && \
+    make && \
+    make test && \
+    make install && \
+    rm -r /tmp/redis-stable && \
+    adduser --system --group --no-create-home redis && \
+    mkdir -p /var/lib/redis && \
+    chown redis:redis /var/lib/redis && \
+    chmod 770 /var/lib/redis
+ADD redis.service /etc/systemd/system/redis.service
+
 # Install letsencrypt
 RUN apt-get install letsencrypt -qq -y
 
@@ -92,4 +109,4 @@ EXPOSE 80
 EXPOSE 443
 
 # start nginx and php7.0-fpm
-CMD service php7.0-fpm start && nginx -g "daemon off;"
+CMD systemctl start redis && service php7.0-fpm start && nginx -g "daemon off;"
