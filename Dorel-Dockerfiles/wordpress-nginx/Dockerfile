@@ -1,6 +1,6 @@
 ###############
 #
-# Docker setup for Wordpress in multiple container setup
+# Docker setup for Dorel Wordpress and PHP7 FPM
 # Author: Bob van Luijt
 # Readme: https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud
 #
@@ -38,15 +38,7 @@ ENV dbhost ${dbhost}
 RUN apt-get update -qq -y
 
 # Install apt-utils
-RUN apt-get install apt-utils unzip wget nginx mysql-client -qq -y
-
-# remove HTML dir
-RUN rm -r /var/www/html
-
-# install PHP7
-RUN apt-get install php7.0-fpm php7.0-mysql php7.0-mcrypt php-mbstring php-gettext -qq -y && \
-    phpenmod mcrypt && \
-    phpenmod mbstring
+RUN apt-get install php7.0 php7.0-mysql nginx wget -qq -y
 
 # Install wp-cli
 RUN wget -q -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -P ~ && \
@@ -54,7 +46,9 @@ RUN wget -q -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp
     mv ~/wp-cli.phar /usr/local/bin/wp
  
 # Download Wordpress
-RUN mkdir /var/www/WordPress &&
+RUN rm -r /var/www/html
+RUN mkdir /var/www && \
+    mkdir /var/www/WordPress && \
     wp core download --path=/var/www/WordPress --allow-root
 
 # Config Wordpress
@@ -66,47 +60,23 @@ RUN wp core install --allow-root --path=/var/www/WordPress --url=${site_url} --t
 # Install super cache, first set chmod 777 and set back later
 RUN chmod 777 /var/www/WordPress/wp-config.php && \
     chmod 777 /var/www/WordPress/wp-content && \
-    wp plugin install wp-super-cache --path=/var/www/WordPress --activate --allow-root && \
-    chmod 755 /var/www/WordPress/wp-config.php && \
-    chmod 755 /var/www/WordPress/wp-content
+    wp plugin install wp-super-cache --path=/var/www/WordPress --activate --allow-root
 
 # IMPORTANT: The wp-content dir is renamed so it can be remounted in the docker run with an external directory
 RUN mv /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
-   
+
 # Set nginx config
 RUN rm /etc/nginx/sites-enabled/default
 ADD default /etc/nginx/sites-enabled/default
-   
-# Install Redis
-#RUN apt-get install build-essential tcl -qq -y && \
-#    mkdir -p /tmp && \
-#    cd /tmp && \
-#    wget http://download.redis.io/redis-stable.tar.gz && \
-#    tar xzvf redis-stable.tar.gz && \
-#    cd redis-stable && \
-#    make && \
-#    make test && \
-#    make install && \
-#    rm -r /tmp/redis-stable && \
-#    adduser --system --group --no-create-home redis && \
-#    mkdir -p /var/lib/redis && \
-#    chown redis:redis /var/lib/redis && \
-#    chmod 770 /var/lib/redis
-#ADD redis.service /etc/systemd/system/redis.service
 
-# Install letsencrypt
-RUN apt-get install letsencrypt -qq -y
+# SET WORDPRESS SECURITY (SEE GITHUB ISSUE)
 
-# setup the script
-# RUN letsencrypt certonly --webroot -w /var/www/WordPress -d ${ssl_domain} -d www.${ssl_domain}
-
-# remove unused things
+# remove unused things, also remove PHP and wp-cli
 RUN apt-get purge wget -qq -y && \
     apt-get autoremove -qq -y
 
-# Expose port 80 and 443
+# Expose port 80
 EXPOSE 80
-EXPOSE 443
 
-# start nginx and php7.0-fpm
-CMD systemctl start redis && service php7.0-fpm start && nginx -g "daemon off;"
+# start nginx
+CMD nginx -g "daemon off;"
