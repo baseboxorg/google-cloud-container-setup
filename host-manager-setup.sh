@@ -17,6 +17,10 @@ fi
 echo "What is the host ip of the database: "
 read DBHOST
 
+# ask for internal ip host
+echo "What is the internal IP of this host (like: 10.132.0.1): "
+read INTERNALHOST
+
 # setup for gcloud (add debs)
 export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
 echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
@@ -81,3 +85,10 @@ apt-get install letsencrypt -qq -y
 
 # Make main dir to connect Wordpress wp-content directories to
 mkdir -m 777 -p /var/wordpress-content
+
+# Clear screen
+clear
+
+# Create Docker manager
+docker swarm init --advertise-addr ${INTERNALHOST}
+echo "USE THE ABOVE COMMAND TO SETUP NODES, SAVE THE TOKEN SECURE"
