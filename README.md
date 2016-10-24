@@ -1,64 +1,76 @@
-# Multi-Wordpress (Docker) setup on Google Cloud + Edge caching and services nodes.
+# Wordpress and Magento 2 Docker Swarm setup for Google Cloud.
 
-This setup will create lightning fast Wordpress installations on one single computing instance in Google Cloud.
+This setup will create Wordpress and Magento 2 installations on the Google Cloud infra using Docker Swarm
 
 Learn more about Google's infra: https://peering.google.com/#/infrastructure
 
 ## Setup Google Cloud
 This setup will guide you through the setup of the Google Cloud. You can also use Google's REST API or `gcloud` to achieve the same end-goal.
 
-1. Login to the Google Cloud console and select your project https://console.cloud.google.com
-2. Go into: Compute Engine -> Instance groups
-3. Create a group with the following settings:
-  3.1 Single Zone<br>
-  3.2 Instance template, create a new template (or select this one if you already defined this)<br>
-    3.2.1 Select a machine that is optimised on CPU.<br>
-    3.2.2 Boot Disk is Ubuntu 16.04 LTS<br>
-    3.2.3 Only allow HTTPS access<br>
-    3.2.4 Select SSD Bootdisk<br>
-    3.2.5 Enable the Cloud SQL and Compute APIs<br>
-  3.2 Autoscaling = off<br>
-  3.3 Number of instances = 1<br>
-  3.4 No Health Check<br>
-  3.5 Under advanced: check "Do not retry machine creation.".
-4. Go to SQL in the menu
-5. Create a second generation instance
-  5.1 Select Mysql 5.7<br>
-  5.2 Select the _exact same_ region as your VM<br>
-  5.3 Select SSD<br>
-  5.4 Enable auto storage increasement<br>
-  5.5 Create failover replica<br>
-  5.6 Click "Add Network and add the IP of the newly created VM 
-6. Go to Networking in the menu.
-7. Go to Load balancing and create a new HTTP(S) Load Balancer
-8. Create a backend service
-  8.1 Select the instance group from above<br>
-  8.2 Set the ports to 80 and 443<br>
-  8.3 Set Maximum CPU utilization to 100<br>
-  8.4 Create a health check that checks every 3600 seconds <br>
-  8.5 Enable the cloud CDN
-9. In Frontend Configuration, create an IP and assign it for both http and https.
-10. Add a certificate if you use https.
+CREATE INSTANT TEMPLATE FIRST
 
-SSH into the VM that is created and setup the gateway server as mentioned below.
+MANAGER = INSTANCE GROUP OF ONE, REST IS NORMAL, DON'T FORGET TO SET ACCESS TO SQL API and DISABLE EXTERNAL IPS
 
-## Setup the proxy server
+You can use the following steps to create new Docker managers or workers.
+
+### Create worker template
+`gcloud compute --project "dorel-io" instance-templates create "dorel-io-docker-worker-template" --machine-type "n1-standard-2" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only" --tags "https-server" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-worker-template"`
+
+_Note: external IP will be provided by default, for production you need to disable this_
+
+### Create manager template
+`gcloud compute --project "dorel-io" instance-templates create "dorel-io-docker-manager-template" --machine-type "n1-standard-1" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-manager-template"`
+
+_Note: external IP will be provided by default, for production you need to disable this_
+
+### Create machine based on manager template
+`gcloud compute --project "dorel-io" instance-groups managed create "dorel-io-docker-manager" --zone "europe-west1-c" --base-instance-name "dorel-io-docker-manager" --template "dorel-io-docker-manager-template" --size "1"`
+
+### Create machine based on worker template
+`gcloud compute --project "dorel-io" instance-groups managed create "dorel-io-docker-worker-001" --zone "europe-west1-c" --base-instance-name "dorel-io-docker-worker-001" --template "dorel-io-docker-worker-template" --size "1"`
+
+_Note: Set the `--base-instance-name` in increasements like:  dorel-io-docker-worker-001, dorel-io-docker-worker-002 etc._
+
+## Setup the swarm manager
+
+Log into the manager machine.
 
 0. Run as root: `sudo su`
 1. Install unzip: `apt-get update && apt-get upgrade -qq -y && apt-get install unzip -qq -y`
 2. Go to home folder: `cd ~`
-3. Get this repo: `wget https://github.com/dorel/wordpress-container-setup/archive/master.zip`
+3. Get this repo: `wget https://github.com/dorel/google-cloud-container-setup/archive/master.zip`
 4. Unzip: `unzip master.zip`
 4. Remove master zip file: `rm master.zip`
-4. Go into dir: `cd wordpress-container-setup-master`
+4. Go into dir: `cd google-cloud-container-setup`
 5. Make the bash files execable: `chmod +x ./*.sh`
-6. Setup the gateway by running: `./proxy-setup.sh`
+6. Setup the gateway by running: `./host-manager-setup.sh`
 7. The setup will ask for the database host (the ip of the DB)
-8. The setup will ask for the database root password, you need to type this for security reasons
+8. The setup will ask for the INTERNAL host of this machine.
+9. The setup will ask for the database root password, you need to type this for security reasons
 
-Or exec as one big command: `apt-get update && apt-get upgrade -qq -y && apt-get install unzip -qq -y && cd ~ && wget https://github.com/dorel/wordpress-container-setup/archive/master.zip && unzip master.zip && rm master.zip && cd wordpress-container-setup-master && chmod +x ./*.sh && ./proxy-setup.sh`
+_note: make sure to save the Docker Swarm output. This output contains a token to setup your swarm_
+
+Or exec as one big command: `apt-get update && apt-get upgrade -qq -y && apt-get install unzip -qq -y && cd ~ && wget https://github.com/dorel/google-cloud-container-setup/archive/master.zip && unzip master.zip && rm master.zip && cd google-cloud-container-setup && chmod +x ./*.sh && ./host-manager-setup.sh`
 
 When the setup is done, you can create a container as mentioned below.
+
+## Setup swarm nodes
+
+_Note: you can run this command on every node you want to create, also when a node is full and you want to extend the platform_
+
+Log into the worker machine
+
+0. Run as root: `sudo su`
+1. Install unzip: `apt-get update && apt-get upgrade -qq -y && apt-get install unzip -qq -y`
+2. Go to home folder: `cd ~`
+3. Get this repo: `wget https://github.com/dorel/google-cloud-container-setup/archive/master.zip`
+4. Unzip: `unzip master.zip`
+4. Remove master zip file: `rm master.zip`
+4. Go into dir: `cd google-cloud-container-setup`
+5. Make the bash files execable: `chmod +x ./*.sh`
+6. Setup the gateway by running: `./host-worker-setup.sh`
+7. The script will ask for the swarm join token. This will be something like: `SWMTKN-1-2tfvrs35ut89vwrbxxju84jmazhpro0jp0o3asgqwywo6qg4d-acqf993urf3cawjd18jbvus`, you have received it when setting up the swarm manager.
+8. The script will ask for the swarm manager IP. This needs to be the INTERNAL ip.
 
 ## Create a new Wordpress Container
 Create database, nginx proxy files, etcetera.
