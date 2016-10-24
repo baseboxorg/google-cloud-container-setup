@@ -13,6 +13,14 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
+# Get Swarm Token
+echo "What is the Docker Swarm Token: "
+read SWARMTOKEN
+
+# Get Swarm Manager IP
+echo "What is the INTERNAL ip of the Swarm Manager: "
+read SWARMIP
+
 # Update
 apt-get update -qq -y
 
@@ -57,3 +65,6 @@ service docker start
 
 # Make main dir to connect Wordpress wp-content directories to
 mkdir -m 777 -p /var/wordpress-content
+
+# Add this machine to the swarm
+docker swarm join --token ${SWARMTOKEN} ${SWARMIP}:2377
