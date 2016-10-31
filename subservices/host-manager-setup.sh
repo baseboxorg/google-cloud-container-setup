@@ -13,24 +13,26 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
-# ask for database ip host
-echo "What is the host ip of the database: "
-read DBHOST
+# Update and install dialog
+apt-get update -qq -y
+apt-get install dialog -qq -y
 
-# ask for internal ip host
-echo "What is the internal IP of this host (like: 10.132.0.1): "
-read INTERNALHOST
+# Install security updates
+apt-get unattended-upgrades -d -qq -y
+
+# ask for database ip host
+exec 3>&1;
+DBHOST=$(dialog --inputbox "What is the host ip of the database." 0 0 2>&1 1>&3);
+exitcode=$?;
+exec 3>&-;
+
+# get the internal ip host
+INTERNALHOST=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
 
 # setup for gcloud (add debs)
 export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
 echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
 curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-
-# Update
-apt-get update -qq -y
-
-# Install security updates
-apt-get unattended-upgrades -d -qq -y
 
 # Install MYSQL client and set pass and host
 apt-get install mysql-client-5.7 -qq -y
@@ -91,4 +93,4 @@ clear
 
 # Create Docker manager
 docker swarm init --advertise-addr ${INTERNALHOST} > ~/config-dockerswarm
-echo "Swarm manager info is available in ~/config-dockerswarm"
+cat ~/config-dockerswarm
