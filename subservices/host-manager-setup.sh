@@ -90,5 +90,5 @@ mkdir -m 777 -p /var/wordpress-content
 clear
 
 # Create Docker manager
-docker swarm init --advertise-addr ${INTERNALHOST}
-echo "USE THE ABOVE COMMAND TO SETUP NODES, SAVE THE TOKEN SECURE"
+docker swarm init --advertise-addr ${INTERNALHOST} > ~/config-dockerswarm
+echo "Swarm manager info is available in ~/config-dockerswarm"
