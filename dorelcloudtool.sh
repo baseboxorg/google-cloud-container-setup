@@ -217,7 +217,7 @@ then
   gsutil --quiet mb -p "${PROJECTID}" -c "NEARLINE" -l "europe-west1" "gs://dorel-io--config-bucket"
   touch ~/${PROJECTNAME}.json
   echo ${PROJECTOBJECT} > ~/${PROJECTNAME}.json
-  gsutil --quiet -p "${PROJECTID}" cp ~/${PROJECTNAME}.json "gs://dorel-io--config-bucket"
+  gsutil --quiet -p "${PROJECTID}" cp ~/${PROJECTNAME}.json "gs://dorel-io--config-bucket" || true
   rm ~/${PROJECTNAME}.json
 
   # Show finish message
