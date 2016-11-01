@@ -131,10 +131,37 @@ then
   # Give a headsup message
   dialog --pause "During the process you will be asked to create a MYSQL root password and you will get the Swarm Manager information returned. Make sure to store the MYSQL root password and Swarm information in a secure place. It will be needed to setup workers in the future.\n\n\nOutput will be available in: /var/log/dorel/init.log" 20 0 25
 
+  # Ask for Git Branch
+    MENU="What Git Branch do you want to use?"
+    OPTIONS=(1 "Develop"
+            2  "Master"
+            3  "I don't know what I'm doing...")
+
+    CHOICE=$(dialog --clear \
+                    --backtitle "$BACKTITLE" \
+                    --title "$TITLE" \
+                    --menu "$MENU" \
+                    $HEIGHT $WIDTH $CHOICE_HEIGHT \
+                    "${OPTIONS[@]}" \
+                    2>&1 >/dev/tty)
+
+    clear
+    case $CHOICE in
+            1)
+                GITBRANCH="develop"
+                ;;
+            2)
+                GITBRANCH="master"
+                ;;
+            3)
+                exit 1
+                ;;
+    esac
+
   # Generate project name
-  wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/subservices/random-nouns.list -O ~/random-nouns.list
+  wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/random-nouns.list -O ~/random-nouns.list
   PROJECTNAME=$(shuf -n 1 random-nouns.list)-$(shuf -n 1 random-nouns.list)
-  dialog --pause "Start generating project ${PROJECTNAME}!" 20 0 25
+  dialog --pause "Start generating project: ${PROJECTNAME}" 10 0 25
 
   # Create log file and dir
   sudo mkdir -p /var/log/dorel
@@ -176,7 +203,7 @@ then
 
   # Setup swarm manager inside box
   echo $(((100/8)*7)) | dialog --gauge "Install the Swarm Manager" 10 70 0
-  gcloud compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/subservices/host-manager-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-manager-setup.sh && sudo ~/host-manager-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\"" >> /var/log/dorel/init.log
+  gcloud compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-manager-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-manager-setup.sh && sudo ~/host-manager-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\"" >> /var/log/dorel/init.log
 
   # Collect swarm information 
   echo $(((100/8)*8)) | dialog --gauge "Collect Swarm info" 10 70 0
