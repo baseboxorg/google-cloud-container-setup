@@ -159,22 +159,22 @@ then
     esac
 
   # Generate project name
-  nohup wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/random-nouns.list -O ~/random-nouns.list
+  wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/random-nouns.list -O ~/random-nouns.list
   PROJECTNAME=$(shuf -n 1 random-nouns.list)-$(shuf -n 1 random-nouns.list)
   dialog --pause "Start generating project: ${PROJECTNAME}" 10 0 25
 
   # Create log file and dir
-  nohup sudo mkdir -p /var/log/dorel
-  nohup sudo touch /var/log/dorel/init.log
-  nohup sudo chmod 777 /var/log/dorel/init.log
+  sudo mkdir -p /var/log/dorel
+  sudo touch /var/log/dorel/init.log
+  sudo chmod 777 /var/log/dorel/init.log
 
   # Create instance template for worker
   echo $(((100/9)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create template for swarm worker" 10 70 0
-  nohup gcloud --quiet compute -q --verbosity=error --project "${PROJECTID}" instance-templates create "dorel-io--${PROJECTNAME}--docker-worker-template" --machine-type "n1-standard-2" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --tags "https-server" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-worker-template" >> /var/log/dorel/init.log 2>&1&
+  gcloud --quiet compute -q --verbosity=error --project "${PROJECTID}" instance-templates create "dorel-io--${PROJECTNAME}--docker-worker-template" --machine-type "n1-standard-2" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --tags "https-server" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-worker-template" >> /var/log/dorel/init.log 2>&1&
   
   # Create instance template for swarm manager
   echo $(((100/9)*2)) | dialog --gauge "Create template for swarm manager" 10 70 0
-  nohup gcloud --quiet compute -q --verbosity=error --project "${PROJECTID}" instance-templates create "dorel-io--${PROJECTNAME}--docker-manager-template" --machine-type "n1-standard-1" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-manager-template" >> /var/log/dorel/init.log 2>&1&
+  gcloud --quiet compute -q --verbosity=error --project "${PROJECTID}" instance-templates create "dorel-io--${PROJECTNAME}--docker-manager-template" --machine-type "n1-standard-1" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-manager-template" >> /var/log/dorel/init.log 2>&1&
   
   # Create Swarm Manager
   echo $(((100/9)*3)) | dialog --gauge "Create the Swarm Manager Ubuntu Box" 10 70 0
@@ -182,28 +182,28 @@ then
   GenerateUid
   SWARMMANAGERIP=${RANDOMIP}
   SWARMMANAGERID="dorel-io--${PROJECTNAME}--docker-swarm-manager-${RANDOMUID}"
-  nohup gcloud --quiet compute --project "${PROJECTID}" instances create "${SWARMMANAGERID}" --description "Dorel.io Docker Swarm manager" --zone "europe-west1-c" --machine-type "n1-standard-1" --subnet "default" --private-network-ip "${SWARMMANAGERIP}" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --tags "swarm-manager" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "20" --boot-disk-type "pd-standard" --boot-disk-device-name "swarm-manager" >> /var/log/dorel/init.log 2>&1&
+  gcloud --quiet compute --project "${PROJECTID}" instances create "${SWARMMANAGERID}" --description "Dorel.io Docker Swarm manager" --zone "europe-west1-c" --machine-type "n1-standard-1" --subnet "default" --private-network-ip "${SWARMMANAGERIP}" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --tags "swarm-manager" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "20" --boot-disk-type "pd-standard" --boot-disk-device-name "swarm-manager" >> /var/log/dorel/init.log 2>&1&
 
   # Create SQL
   echo $(((100/9)*4)) | dialog --gauge "Create cloud SQL with replica (might take some time)" 10 70 0
   GenerateUid
   SQLID="dorel-io--${PROJECTNAME}--database-${RANDOMUID}"
   SQLFAILOVERID="dorel-io--${PROJECTNAME}--failover-database-${RANDOMUID}"
-  nohup gcloud --quiet beta sql --project "${PROJECTID}" instances create "${SQLID}" --tier "db-n1-highmem-4" --activation-policy "ALWAYS" --backup-start-time "01:23" --database-version "MYSQL_5_7" --enable-bin-log --failover-replica-name "${SQLFAILOVERID}" --gce-zone "europe-west1-c" --maintenance-release-channel "PRODUCTION" --maintenance-window-day "SUN" --maintenance-window-hour "01" --region "europe-west1" --replica-type "FAILOVER" --replication ASYNCHRONOUS --require-ssl --storage-auto-increase --storage-size "50GB" --storage-type "SSD" >> /var/log/dorel/init.log 2>&1&
+  gcloud --quiet beta sql --project "${PROJECTID}" instances create "${SQLID}" --tier "db-n1-highmem-4" --activation-policy "ALWAYS" --backup-start-time "01:23" --database-version "MYSQL_5_7" --enable-bin-log --failover-replica-name "${SQLFAILOVERID}" --gce-zone "europe-west1-c" --maintenance-release-channel "PRODUCTION" --maintenance-window-day "SUN" --maintenance-window-hour "01" --region "europe-west1" --replica-type "FAILOVER" --replication ASYNCHRONOUS --require-ssl --storage-auto-increase --storage-size "50GB" --storage-type "SSD" >> /var/log/dorel/init.log 2>&1&
 
   # Create datastore bucket
   echo $(((100/9)*5)) | dialog --gauge "Create storage bucket" 10 70 0
-  nohup gsutil mb -p "${PROJECTID}" -c "REGIONAL" -l "europe-west1" "gs://dorel-io--${PROJECTNAME}--content-bucket" >> /var/log/dorel/init.log
+  gsutil mb -p "${PROJECTID}" -c "REGIONAL" -l "europe-west1" "gs://dorel-io--${PROJECTNAME}--content-bucket" >> /var/log/dorel/init.log
 
   # Set password and collect IP
   GeneratePassword
   echo $(((100/9)*6)) | dialog --gauge "Set mysql root password" 10 70 0
-  nohup gcloud --quiet sql --project "${PROJECTID}" instances set-root-password "${SQLID}" --password "${PASSWORD1}" >> /var/log/dorel/init.log
+  gcloud --quiet sql --project "${PROJECTID}" instances set-root-password "${SQLID}" --password "${PASSWORD1}" >> /var/log/dorel/init.log
   SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
 
   # Setup swarm manager inside box
   echo $(((100/9)*7)) | dialog --gauge "Install the Swarm Manager" 10 70 0
-  nohup gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-manager-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-manager-setup.sh && sudo ~/host-manager-setup.sh --project \"${PROJECTID}\" --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\"" >> /var/log/dorel/init.log 2>&1&
+  gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-manager-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-manager-setup.sh && sudo ~/host-manager-setup.sh --project \"${PROJECTID}\" --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\"" >> /var/log/dorel/init.log 2>&1&
 
   # Collect swarm information 
   echo $(((100/9)*8)) | dialog --gauge "Collect Swarm info" 10 70 0
