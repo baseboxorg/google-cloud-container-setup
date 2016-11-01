@@ -214,10 +214,10 @@ then
   # Create the JSON object and Store to bucket
   echo $(((100/9)*9)) | dialog --gauge "Store config to config bucket in file: ${PROJECTNAME}.json" 10 70 0
   PROJECTOBJECT="{ \"projectName\": \"dorel-io--${PROJECTNAME}\", \"swarmManager\": { \"id\": \"${SWARMMANAGERID}\", \"token\": \"${SWARMTOKEN}\" }, \"db\": { \"id\": \"${SQLID}\" } }"
-  gsutil --quiet mb -p "${PROJECTID}" -c "NEARLINE" -l "europe-west1" "gs://dorel-io--config-bucket"
+  gsutil --quiet mb -p "${PROJECTID}" -c "NEARLINE" -l "europe-west1" "gs://dorel-io--config-bucket" || true
   touch ~/${PROJECTNAME}.json
   echo ${PROJECTOBJECT} > ~/${PROJECTNAME}.json
-  gsutil --quiet -p "${PROJECTID}" cp ~/${PROJECTNAME}.json "gs://dorel-io--config-bucket" || true
+  gsutil --quiet -p "${PROJECTID}" cp ~/${PROJECTNAME}.json "gs://dorel-io--config-bucket"
   rm ~/${PROJECTNAME}.json
 
   # Show finish message
