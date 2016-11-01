@@ -11,7 +11,7 @@
 function GeneratePassword {
     # Get first time
     exec 3>&1;
-    PASSWORD1=$(dialog --passwordbox "Mysql root password (make sure to store this password!)." 0 0 2>&1 1>&3);
+    PASSWORD1=$(dialog --passwordbox "Mysql root password\n(make sure to store this password!)." 0 0 2>&1 1>&3);
     exitcode=$?;
     exec 3>&-;
 
@@ -54,62 +54,46 @@ BACKTITLE="Dorel.io SETUP"
 TITLE="Dorel.io SETUP"
 
 # Ask project ID
-MENU="Select you project ID:"
-OPTIONS=(1 "Dorel.io Develop (dorel-io-dev)"
-         2 "Dorel.io Production (dorel-io)"
-         3 "Dorel.io NEW PROJECT"
-         4 "I don't know what I'm doing...")
-
-CHOICE=$(dialog --clear \
-                --backtitle "$BACKTITLE" \
-                --title "$TITLE" \
-                --menu "$MENU" \
-                $HEIGHT $WIDTH $CHOICE_HEIGHT \
-                "${OPTIONS[@]}" \
-                2>&1 >/dev/tty)
-
-clear
-case $CHOICE in
-        1)
-            PROJECTID=$(echo dorel-io-dev)
-            ;;
-        2)
-            PROJECTID=$(echo dorel-io)
-            ;;
-        3)
-            exec 3>&1;
-            PROJECTID=$(dialog --inputbox "Project name with hyphens and small caps (example: this-is-a-test)." 0 0 2>&1 1>&3);
-            exitcode=$?;
-            exec 3>&-;
-            ;;
-        4)
-            exit 1
-            ;;
-esac
+exec 3>&1;
+PROJECTID=$(dialog --inputbox "What is the Google Project Id?" 0 0 2>&1 1>&3);
+exitcode=$?;
+exec 3>&-;
 
 # Ask: What do you want to do?
 MENU="What do you want to do?"
-OPTIONS=(1 "Create new worker"
-         2 "Initiate sub-project setup."
-         3 "I don't know what I'm doing...")
+OPTIONS=(1 "New Wordpress installation"
+         2 "Recreate Wordpress installation"
+         3 "Delete Wordpress installation"
+         4 "Create new Docker worker within a Docker project"
+         5 "Create a new Docker project"
+         6 "Quit")
 
 CHOICE=$(dialog --clear \
                 --backtitle "$BACKTITLE" \
                 --title "$TITLE" \
                 --menu "$MENU" \
-                $HEIGHT $WIDTH $CHOICE_HEIGHT \
+                $HEIGHT 0 $CHOICE_HEIGHT \
                 "${OPTIONS[@]}" \
                 2>&1 >/dev/tty)
 
 clear
 case $CHOICE in
         1)
-            TASK=$(echo create_worker)
+            TASK=$(echo new_wordpress)
             ;;
         2)
-            TASK=$(echo init_google_cloud)
+            TASK=$(echo recreate_wordpress)
             ;;
         3)
+            TASK=$(echo delete_wordpress)
+            ;;
+        4)
+            TASK=$(echo create_worker)
+            ;;
+        5)
+            TASK=$(echo init_google_cloud)
+            ;;
+        6)
             exit 1
             ;;
 esac
@@ -119,7 +103,7 @@ esac
 ###
 if [[ "$TASK" == "create_worker" ]]
 then
-	echo INIT CLOUD
+	echo "Create Worker"
 fi
 
 ###
@@ -133,9 +117,8 @@ then
 
   # Ask for Git Branch
     MENU="What Git Branch do you want to use?"
-    OPTIONS=(1 "Develop"
-            2  "Master"
-            3  "I don't know what I'm doing...")
+    OPTIONS=(1 "develop"
+             2 "master")
 
     CHOICE=$(dialog --clear \
                     --backtitle "$BACKTITLE" \
@@ -152,9 +135,6 @@ then
                 ;;
             2)
                 GITBRANCH="master"
-                ;;
-            3)
-                exit 1
                 ;;
     esac
 
