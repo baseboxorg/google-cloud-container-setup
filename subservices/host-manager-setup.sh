@@ -26,6 +26,10 @@ case $key in
     SQLPASS="$2"
     shift # past argument
     ;;
+    -P|--project)
+    PROJECTID="$2"
+    shift # past argument
+    ;;
     --default)
     DEFAULT=YES
     ;;
@@ -39,8 +43,9 @@ done
 ###
 # Validate if needed arguments are available
 ###
-if [ -z ${DBHOST} ];   then echo "-i or --sqlip is unset | abort";    exit 1; fi
-if [ -z ${SQLPASS} ];  then echo "-p or --sqlpass is unset | abort";  exit 1; fi
+if [ -z ${DBHOST} ];     then echo "-i or --sqlip is unset | abort";     exit 1; fi
+if [ -z ${SQLPASS} ];    then echo "-p or --sqlpass is unset | abort";   exit 1; fi
+if [ -z ${PROJECTID} ];  then echo "-P or --project is unset | abort"; exit 1; fi
 
 # Update and install dialog
 apt-get update -qq -y
@@ -63,7 +68,7 @@ mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --passwo
 
 # Install gcloud
 apt-get install google-cloud-sdk
-gcloud init
+printf "1\n${PROJECTID}" | gcloud init
 
 # Install Docker deps
 apt-get install apt-transport-https ca-certificates -qq -y
