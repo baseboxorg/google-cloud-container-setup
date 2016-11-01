@@ -173,12 +173,12 @@ then
 
   # Create datastore bucket
   echo $(((100/9)*5)) | dialog --gauge "Create storage bucket" 10 70 0
-  gsutil mb -p "${PROJECTID}" -c "REGIONAL" -l "europe-west1" "gs://dorel-io--${PROJECTNAME}--content-bucket" >> /var/log/dorel/init.log
+  gsutil mb -p "${PROJECTID}" -c "REGIONAL" -l "europe-west1" "gs://dorel-io--${PROJECTNAME}--content-bucket" >> /var/log/dorel/init.log 2>&1
 
   # Set password and collect IP
   GeneratePassword
   echo $(((100/9)*6)) | dialog --gauge "Set mysql root password" 10 70 0
-  gcloud --quiet sql --project "${PROJECTID}" instances set-root-password "${SQLID}" --password "${PASSWORD1}" >> /var/log/dorel/init.log
+  gcloud --quiet sql --project "${PROJECTID}" instances set-root-password "${SQLID}" --password "${PASSWORD1}" >> /var/log/dorel/init.log 2>&1
   SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
 
   # Setup swarm manager inside box
