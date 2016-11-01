@@ -13,18 +13,41 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
+# Collect the arguments
+while [[ $# -gt 1 ]]
+do
+key="$1"
+case $key in
+    -i|--sqlip)
+    DBHOST="$2"
+    shift # past argument
+    ;;
+    -p|--sqlpass)
+    SQLPASS="$2"
+    shift # past argument
+    ;;
+    --default)
+    DEFAULT=YES
+    ;;
+    *)
+    # if unknown option
+    ;;
+esac
+shift # past argument or value
+done
+
+###
+# Validate if needed arguments are available
+###
+if [ -z ${DBHOST} ];   then echo "-i or --sqlip is unset | abort";    exit 1; fi
+if [ -z ${SQLPASS} ];  then echo "-p or --sqlpass is unset | abort";  exit 1; fi
+
 # Update and install dialog
 apt-get update -qq -y
 apt-get install dialog -qq -y
 
 # Install security updates
 apt-get unattended-upgrades -d -qq -y
-
-# ask for database ip host
-exec 3>&1;
-DBHOST=$(dialog --inputbox "What is the host ip of the database." 0 0 2>&1 1>&3);
-exitcode=$?;
-exec 3>&-;
 
 # get the internal ip host
 INTERNALHOST=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
@@ -36,11 +59,7 @@ curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
 # Install MYSQL client and set pass and host
 apt-get install mysql-client-5.7 -qq -y
-echo "What is the mysql root password: "
-mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --password
-
-# Install jq for parsing jquery
-apt-get install jq -qq -y
+mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --password="${SQLPASS}"
 
 # Install gcloud
 apt-get install google-cloud-sdk
@@ -79,18 +98,14 @@ apt-get install docker-engine -qq -y
 # Start the Docker service
 service docker start
 
-# Install NGINX
-apt-get install nginx -qq -y
+# Install NGINX (disabled for now, might be removed during checkup)
+# apt-get install nginx -qq -y
 
-# Install SSL
-apt-get install letsencrypt -qq -y
+# Install SSL (disabled for now, might be removed during checkup)
+# apt-get install letsencrypt -qq -y
 
 # Make main dir to connect Wordpress wp-content directories to
 mkdir -m 777 -p /var/wordpress-content
 
-# Clear screen
-clear
-
-# Create Docker manager
+# Create Docker manager, note, info written to config-dockerswarm, will be used later
 docker swarm init --advertise-addr ${INTERNALHOST} > ~/config-dockerswarm
-cat ~/config-dockerswarm

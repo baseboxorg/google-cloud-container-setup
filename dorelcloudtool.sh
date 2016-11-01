@@ -168,14 +168,15 @@ then
   echo $(((100/8)*5)) | dialog --gauge "Create storage bucket" 10 70 0
   gsutil mb -p "${PROJECTID}" -c "REGIONAL" -l "europe-west1" "gs://dorel-io--${PROJECTNAME}--content-bucket" >> /var/log/dorel/init.log
 
-  # Set password
+  # Set password and collect IP
   GeneratePassword
   echo $(((100/8)*6)) | dialog --gauge "Set mysql root password" 10 70 0
   gcloud sql --project "${PROJECTID}" instances set-root-password "${SQLID}" --password "${PASSWORD1}" >> /var/log/dorel/init.log
+  SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
 
   # Setup swarm manager inside box
   echo $(((100/8)*7)) | dialog --gauge "Install the Swarm Manager" 10 70 0
-  gcloud compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/subservices/host-manager-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-manager-setup.sh && sudo ~/host-manager-setup.sh" >> /var/log/dorel/init.log
+  gcloud compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/subservices/host-manager-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-manager-setup.sh && sudo ~/host-manager-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\"" >> /var/log/dorel/init.log
 
   # Collect swarm information 
   echo $(((100/8)*8)) | dialog --gauge "Collect Swarm info" 10 70 0
