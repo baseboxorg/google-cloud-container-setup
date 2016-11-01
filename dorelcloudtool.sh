@@ -218,6 +218,7 @@ then
   touch ~/${PROJECTNAME}.json
   echo ${PROJECTOBJECT} > ~/${PROJECTNAME}.json
   gsutil --quiet -p "${PROJECTID}" cp ~/${PROJECTNAME}.json "gs://dorel-io--config-bucket"
+  rm ~/${PROJECTNAME}.json
 
   # Show finish message
   dialog --pause "If you see this message, the initial cloud setup is done. The following object is stored in the config bucket, you might want to store it too.\n\n\n${PROJECTOBJECT}" 20 0 60
