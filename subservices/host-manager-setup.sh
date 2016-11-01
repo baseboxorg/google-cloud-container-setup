@@ -107,5 +107,8 @@ service docker start
 # Make main dir to connect Wordpress wp-content directories to
 mkdir -m 777 -p /var/wordpress-content
 
-# Create Docker manager, note, info written to config-dockerswarm, will be used later
-docker swarm init --advertise-addr ${INTERNALHOST} > ~/config-dockerswarm
+# Create Docker manager
+docker swarm init --advertise-addr ${INTERNALHOST}
+
+# Write token to config file (will be used later in the setup)
+docker swarm join-token worker -q > ~/config-dockerswarm

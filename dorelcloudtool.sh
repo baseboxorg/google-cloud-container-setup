@@ -209,8 +209,9 @@ then
   echo $(((100/8)*8)) | dialog --gauge "Collect Swarm info" 10 70 0
   SWARMINFO=$(gcloud compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "cat ~/config-dockerswarm")
   dialog --infobox "Save this information for connecting Swarm workers in the future:\n${SWARMMANAGERID}" 0 0 >> /var/log/dorel/init.log
+  SWARMTOKEN=$(gcloud compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "cat ~/config-dockerswarm")
 
   # Show finish message
-  dialog --pause "If you see this message, the initial cloud setup is done. Make sure to safe all the data in a secure place.\n\n\nMySQL root password: ****\nProject name: dorel-io--${PROJECTNAME}\nDatabase name: ${SQLID}\nDocker Swarm Manager ID: ${SWARMMANAGERID}\nDocker Swarm Manager IP: ${SWARMMANAGERIP}" 20 0 60
+  dialog --pause "If you see this message, the initial cloud setup is done. Make sure to safe all the data in a secure place.\n\n\nSwarm Token:${SWARMTOKEN}\nMySQL root password: ****\nProject name: dorel-io--${PROJECTNAME}\nDatabase name: ${SQLID}\nDocker Swarm Manager ID: ${SWARMMANAGERID}\nDocker Swarm Manager IP: ${SWARMMANAGERIP}" 20 0 60
 
 fi
