@@ -49,7 +49,7 @@ sudo apt-get -qq -y install dialog
 # Setup input fields
 HEIGHT=25
 WIDTH=80
-CHOICE_HEIGHT=5
+CHOICE_HEIGHT=16
 BACKTITLE="Dorel.io SETUP"
 TITLE="Dorel.io SETUP"
 
