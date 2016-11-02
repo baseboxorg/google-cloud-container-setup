@@ -203,7 +203,7 @@ then
   # Generate project name
   wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/random-nouns.list -O ~/random-nouns.list
   PROJECTNAME=$(shuf -n 1 random-nouns.list)-$(shuf -n 1 random-nouns.list)
-  dialog --pause "Start generating project: ${PROJECTNAME}" 10 0 25
+  dialog --pause "Start generating project:\n\n${PROJECTNAME}" 0 0 25
 
   # Create log file and dir
   sudo mkdir -p /var/log/dorel
