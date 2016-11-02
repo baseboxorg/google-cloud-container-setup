@@ -37,6 +37,21 @@ function GenerateUid {
     RANDOMUID=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
 }
 
+# set the subproject ID
+function SetSubProjectId {
+    exec 3>&1;
+    PROJECTNAME=$(dialog --inputbox "What is the name of the sub-project?" 0 0 2>&1 1>&3)
+    exec 3>&-;
+
+    gsutil ls gs://dorel-io--config-bucket/${SUBPROJECTID}.json
+    if [ $? -eq 0 ]; then
+        dialog --infobox "Loaded sub-project: ${SUBPROJECTID}" 0 0
+    else
+        dialog --infobox "The project ${SUBPROJECTID} does not exist, try again please" 0 0
+        SetSubProjectId
+    fi 
+}
+
 # Setup the shell
 set -e
 clear
@@ -44,7 +59,7 @@ echo "Setting up Dorel Juvenile Google Cloud setup by @bobvanluijt..."
 mkdir -p ~/.cloudshell
 touch ~/.cloudshell/no-apt-get-warning
 sudo apt-get -qq -y update
-sudo apt-get -qq -y install dialog
+sudo apt-get -qq -y install dialog jq
 
 # Setup input fields
 HEIGHT=25
@@ -58,6 +73,29 @@ exec 3>&1;
 PROJECTID=$(dialog --inputbox "What is the Google Project Id?" 0 0 2>&1 1>&3);
 exitcode=$?;
 exec 3>&-;
+
+# Ask for Git Branch
+MENU="What Git Branch do you want to use?"
+OPTIONS=(1 "develop"
+            2 "master")
+
+CHOICE=$(dialog --clear \
+                --backtitle "$BACKTITLE" \
+                --title "$TITLE" \
+                --menu "$MENU" \
+                $HEIGHT $WIDTH $CHOICE_HEIGHT \
+                "${OPTIONS[@]}" \
+                2>&1 >/dev/tty)
+
+clear
+case $CHOICE in
+        1)
+            GITBRANCH="develop"
+            ;;
+        2)
+            GITBRANCH="master"
+            ;;
+esac
 
 # Ask: What do you want to do?
 MENU="What do you want to do?"
@@ -98,12 +136,59 @@ case $CHOICE in
             ;;
 esac
 
+########
+########
+##
+## INSTALLATION PROCESS STARTS HERE
+##
+########
+########
+
 ###
 # Run CREATE WORKER task
 ###
 if [[ "$TASK" == "create_worker" ]]
 then
-	echo "Create Worker"
+    # Set the sub-project id
+	SetSubProjectId
+
+    # Get a new IP
+    GenerateIp
+    SWARMWORKERIP=RANDOMIP
+
+    # Collect manager type
+    MENU="Select a worker type?"
+    OPTIONS=("n1-standard-1" "Standard 1 CPU machine type with 1 virtual CPU and 3.75 GB of memory."
+             "n1-standard-2" "Standard 2 CPU machine type with 2 virtual CPUs and 7.5 GB of memory."
+             "n1-standard-4" "Standard 4 CPU machine type with 4 virtual CPUs and 15 GB of memory.")
+
+    SWARMMANAGERTYPE=$(dialog --clear \
+                    --backtitle "$BACKTITLE" \
+                    --title "$TITLE" \
+                    --menu "$MENU" \
+                    $HEIGHT 0 $CHOICE_HEIGHT \
+                    "${OPTIONS[@]}" \
+                    2>&1 >/dev/tty)
+
+    # Set worker ID
+    GenerateUid
+    SWARMWORKERID="dorel-io--${PROJECTNAME}--docker-swarm-worker-${RANDOMUID}"
+
+    # Create the worker
+    echo $(((100/3)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create a Swarm Worker" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" instances create "${SWARMWORKERID}" --description "Dorel.io Docker Swarm worker" --zone "europe-west1-c" --machine-type "${SWARMMANAGERTYPE}" --subnet "default" --private-network-ip "${SWARMWORKERIP}" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --tags "swarm-manager" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "20" --boot-disk-type "pd-standard" --boot-disk-device-name "swarm-manager" >> /var/log/dorel/init.log 2>&1
+
+    # Collect the IP of the swarm worker
+    gsutil cp gs://dorel-io--config-bucket/${PROJECTNAME}.json ~/${PROJECTNAME}.json
+    SWARMTOKEN=cat ~/${PROJECTNAME}.json | jq -r '.swarmManager.token'
+
+    # Connect to worker to the swarm manager
+    echo $(((100/3)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Connect the Swarm Worker to the Swarm Manager" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMWORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --swarmip \"${SWARMWORKERIP}\" --swarmtoken \"${SWARMTOKEN}\"" >> /var/log/dorel/init.log 2>&1
+
+    # Show success message
+    dialog --title "$TITLE" --backtitle "$BACKTITLE" --infobox "The installation of the Swarm Worker is done" 0 0
+
 fi
 
 ###
@@ -114,29 +199,6 @@ then
   
   # Give a headsup message
   dialog --pause "During the process you will be asked to create a MYSQL root password and you will get the Swarm Manager information returned. Make sure to store the MYSQL root password and Swarm information in a secure place. It will be needed to setup workers in the future.\n\n\nOutput will be available in: /var/log/dorel/init.log" 20 0 25
-
-  # Ask for Git Branch
-    MENU="What Git Branch do you want to use?"
-    OPTIONS=(1 "develop"
-             2 "master")
-
-    CHOICE=$(dialog --clear \
-                    --backtitle "$BACKTITLE" \
-                    --title "$TITLE" \
-                    --menu "$MENU" \
-                    $HEIGHT $WIDTH $CHOICE_HEIGHT \
-                    "${OPTIONS[@]}" \
-                    2>&1 >/dev/tty)
-
-    clear
-    case $CHOICE in
-            1)
-                GITBRANCH="develop"
-                ;;
-            2)
-                GITBRANCH="master"
-                ;;
-    esac
 
   # Generate project name
   wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/random-nouns.list -O ~/random-nouns.list
