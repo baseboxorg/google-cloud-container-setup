@@ -13,13 +13,34 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
-# Get Swarm Token
-echo "What is the Docker Swarm Token: "
-read SWARMTOKEN
+# Collect the arguments
+while [[ $# -gt 1 ]]
+do
+key="$1"
+case $key in
+    -t|--swarmtoken)
+    SWARMTOKEN="$2"
+    shift # past argument
+    ;;
+    -i|--swarmip)
+    SWARMIP="$2"
+    shift # past argument
+    ;;
+    --default)
+    DEFAULT=YES
+    ;;
+    *)
+    # if unknown option
+    ;;
+esac
+shift # past argument or value
+done
 
-# Get Swarm Manager IP
-echo "What is the INTERNAL ip of the Swarm Manager: "
-read SWARMIP
+###
+# Validate if needed arguments are available
+###
+if [ -z ${SWARMTOKEN} ]; then echo "-t or --swarmtoken is unset | abort";   exit 1; fi
+if [ -z ${SWARMIP} ];    then echo "-i or --swarmip is unset | abort"; exit 1; fi
 
 # Update
 apt-get update -qq -y
@@ -64,7 +85,8 @@ apt-get install docker-engine -qq -y
 service docker start
 
 # Make main dir to connect Wordpress wp-content directories to
-mkdir -m 777 -p /var/wordpress-content
+# DISABLED, MIGHT BE REMOVED ON CLEANUP
+# mkdir -m 777 -p /var/wordpress-content
 
 # Add this machine to the swarm
 docker swarm join --token ${SWARMTOKEN} ${SWARMIP}:2377
