@@ -108,8 +108,7 @@ OPTIONS=(1 "New Wordpress installation"
          2 "Recreate Wordpress installation"
          3 "Delete Wordpress installation"
          4 "Create new Docker worker within a Docker project"
-         5 "Create a new Docker project"
-         6 "Quit")
+         5 "Create a new Docker project")
 
 CHOICE=$(dialog --clear \
                 --backtitle "$BACKTITLE" \
@@ -135,9 +134,6 @@ case $CHOICE in
             ;;
         5)
             TASK=$(echo init_google_cloud)
-            ;;
-        6)
-            exit 1
             ;;
 esac
 
@@ -185,15 +181,25 @@ then
 
     # Collect the IP of the swarm worker
     gsutil cp gs://dorel-io--config-bucket/${PROJECTNAME}.json ~/${PROJECTNAME}.json
-    SWARMTOKEN=cat ~/${PROJECTNAME}.json | jq -r '.swarmManager.token'
-    SWARMMANAGERIP=cat ~/${PROJECTNAME}.json | jq -r '.swarmManager.ip'
+    SWARMTOKEN=$(cat ~/${PROJECTNAME}.json | jq -r '.swarmManager.token')
+    SWARMMANAGERIP=$(cat ~/${PROJECTNAME}.json | jq -r '.swarmManager.ip')
 
     # Connect to worker to the swarm manager
     echo $(((100/3)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Connect the Swarm Worker to the Swarm Manager" 10 70 0
     gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMWORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --swarmip \"${SWARMMANAGERIP}\" --swarmtoken \"${SWARMTOKEN}\"" >> /var/log/dorel/debug.log 2>&1
 
+    # Add worker name to JSON config
+    node <<EOF
+        var fs    = require("fs")
+        var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
+        obj.workers.push({ "id": "${SWARMWORKERID}", "ip": "${SWARMWORKERIP}" });
+        fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
+EOF
+    gsutil cp ~/${PROJECTNAME}.json gs://dorel-io--config-bucket/${PROJECTNAME}.json
+    rm ~/${PROJECTNAME}.json
+
     # Show success message
-    dialog --title "$TITLE" --backtitle "$BACKTITLE" --infobox "The installation of the Swarm Worker is done" 0 0
+    dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The installation of the Swarm Worker is done" 0 0
 
 fi
 
@@ -209,6 +215,7 @@ then
   # Generate project name
   wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/random-nouns.list -O ~/random-nouns.list
   PROJECTNAME=$(shuf -n 1 random-nouns.list)-$(shuf -n 1 random-nouns.list)
+  rm random-nouns.list
   dialog --pause "Start generating project:\n\n${PROJECTNAME}" 14 0 25
 
   # Create instance template for worker
@@ -256,7 +263,7 @@ then
 
   # Create the JSON object and Store to bucket
   echo $(((100/9)*9)) | dialog --gauge "Store config to config bucket in file: ${PROJECTNAME}.json" 10 70 0
-  PROJECTOBJECT="{ \"projectName\": \"dorel-io--${PROJECTNAME}\", \"projectNameShort\": \"${PROJECTNAME}\", \"swarmManager\": { \"id\": \"${SWARMMANAGERID}\", \"token\": \"${SWARMTOKEN}\", \"ip\": \"${SWARMMANAGERIP}\" }, \"db\": { \"id\": \"${SQLID}\" } }"
+  PROJECTOBJECT="{ \"projectName\": \"dorel-io--${PROJECTNAME}\", \"projectNameShort\": \"${PROJECTNAME}\", \"swarmManager\": { \"id\": \"${SWARMMANAGERID}\", \"token\": \"${SWARMTOKEN}\", \"ip\": \"${SWARMMANAGERIP}\" }, \"db\": { \"id\": \"${SQLID}\" }, \"workers\": [] }"
   gsutil --quiet mb -p "${PROJECTID}" -c "NEARLINE" -l "europe-west1" "gs://dorel-io--config-bucket" || true
   touch ~/${PROJECTNAME}.json
   echo ${PROJECTOBJECT} > ~/${PROJECTNAME}.json
