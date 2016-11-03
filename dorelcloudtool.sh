@@ -7,8 +7,15 @@
 #
 ###############
 
+# Setup input fields
+HEIGHT=25
+WIDTH=80
+CHOICE_HEIGHT=16
+BACKTITLE="Dorel.io SETUP"
+TITLE="Dorel.io SETUP"
+
 # function to create Passwords
-function GeneratePassword {
+function GenerateSqlPassword {
     # Get first time
     exec 3>&1;
     PASSWORD1=$(dialog --passwordbox "Mysql root password\n(make sure to store this password!)." 0 0 2>&1 1>&3);
@@ -23,8 +30,49 @@ function GeneratePassword {
 
     echo "${PASSWORD1} and ${PASSWORD2}"
     if [ "${PASSWORD1}" != "${PASSWORD2}" ]; then
-        GeneratePassword
+        GenerateSqlPassword
     fi
+}
+
+# Get Wordpress database
+function GetWordpressData {
+    WEBSITEACCESSPOINT=""
+    TITLE=""
+    ADMINEMAIL=""
+    # open fd
+    exec 3>&1
+    # Store data to $VALUES variable
+    VALUES=$(dialog --output-separator "," \
+            --backtitle "Linux User Managment" \
+            --title "Useradd" \
+            --form "Create a new user" \
+        15 50 0 \
+                "Access Url:"    1 1 "$WEBSITEACCESSPOINT" 1 16 40 0 \
+                "Website Title:" 2 1 "$TITLE"              2 16 40 0 \
+                "Admin Email:"   3 1 "$ADMINEMAIL"         3 16 40 0 \
+        2>&1 1>&3)
+    exec 3>&-
+
+    set -- "$VALUES" 
+    IFS=","; declare -a Array=($*) 
+    WEBSITEACCESSPOINT="${Array[0]}" 
+    TITLE="${Array[1]}" 
+    ADMINEMAIL="${Array[2]}"
+
+    # Validate the URL
+    echo $WEBSITEACCESSPOINT | grep -q -P "^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$"
+    if [ $? -eq 1 ] ; then
+        dialog --msgbox "This (${WEBSITEACCESSPOINT}) is not a valid access url (should be like: www.test.com)" 0 0
+        GetWordpressData
+    fi
+
+    # Validate email
+    echo $ADMINEMAIL | grep -q -P "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b"
+    if [ $? -eq 1 ] ; then
+        dialog --msgbox "This (${ADMINEMAIL}) is not a valid email" 0 0
+        GetWordpressData
+    fi
+
 }
 
 # function generate an internal IP (CIDR range = 10.132.0.0/20)
@@ -65,13 +113,6 @@ sudo apt-get -qq -y install dialog jq
 sudo mkdir -p /var/log/dorel
 sudo touch /var/log/dorel/debug.log
 sudo chmod 777 /var/log/dorel/debug.log
-
-# Setup input fields
-HEIGHT=25
-WIDTH=80
-CHOICE_HEIGHT=16
-BACKTITLE="Dorel.io SETUP"
-TITLE="Dorel.io SETUP"
 
 # Ask project ID
 exec 3>&1;
@@ -148,8 +189,35 @@ esac
 ###
 # Run CREATE WORKER task
 ###
+if [[ "$TASK" == "new_wordpress" ]]
+then
+
+    # Set the sub-project id
+	SetSubProjectId
+
+    # Get Wordpress data
+    GetWordpressData
+
+    # Get the id of the swarm manager
+
+    # Generate the Docker Redis container
+    echo $(((100/3)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
+
+    # Generate the Docker PHP FPM container
+    echo $(((100/3)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
+
+    # Generate the Docker Wordpress container
+    echo $(((100/3)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
+
+fi
+
+###
+# Run CREATE WORKER task
+###
 if [[ "$TASK" == "create_worker" ]]
 then
+
     # Set the sub-project id
 	SetSubProjectId
 
@@ -246,7 +314,7 @@ then
   gsutil mb -p "${PROJECTID}" -c "REGIONAL" -l "europe-west1" "gs://dorel-io--${PROJECTNAME}--content-bucket" >> /var/log/dorel/debug.log 2>&1
 
   # Set password and collect IP
-  GeneratePassword
+  GenerateSqlPassword
   echo $(((100/9)*6)) | dialog --gauge "Set mysql root password" 10 70 0
   gcloud --quiet sql --project "${PROJECTID}" instances set-root-password "${SQLID}" --password "${PASSWORD1}" >> /var/log/dorel/debug.log 2>&1
   SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
