@@ -210,6 +210,10 @@ then
     echo $(((100/3)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
     gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
+    ##
+    # Add container routing https://cloud.google.com/compute/docs/load-balancing/http/content-based-example
+    ##
+
 fi
 
 ###
@@ -221,53 +225,68 @@ then
     # Set the sub-project id
 	SetSubProjectId
 
-    # Get a new IP
-    GenerateIp
-    SWARMWORKERIP=${RANDOMIP}
-
-    # Collect manager type
-    MENU="Select a worker type?"
-    OPTIONS=("n1-standard-1" "Standard 1 CPU machine type with 1 virtual CPU and 3.75 GB of memory."
-             "n1-standard-2" "Standard 2 CPU machine type with 2 virtual CPUs and 7.5 GB of memory."
-             "n1-standard-4" "Standard 4 CPU machine type with 4 virtual CPUs and 15 GB of memory.")
-
-    SWARMMANAGERTYPE=$(dialog --clear \
-                    --backtitle "$BACKTITLE" \
-                    --title "$TITLE" \
-                    --menu "$MENU" \
-                    $HEIGHT 0 $CHOICE_HEIGHT \
-                    "${OPTIONS[@]}" \
-                    2>&1 >/dev/tty)
-
     # Set worker ID
     GenerateUid
-    SWARMWORKERID="dorel-io--${PROJECTNAME}--docker-swarm-worker-${RANDOMUID}"
+    DOCKERWORKERID="dorel-io--${PROJECTNAME}--docker-worker-${RANDOMUID}"
 
     # Create the worker
-    echo $(((100/3)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create a Swarm Worker" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" instances create "${SWARMWORKERID}" --description "Dorel.io Docker Swarm worker" --zone "europe-west1-c" --machine-type "${SWARMMANAGERTYPE}" --subnet "default" --private-network-ip "${SWARMWORKERIP}" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --tags "swarm-manager" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "20" --boot-disk-type "pd-standard" --boot-disk-device-name "swarm-manager" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/11)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create a worker" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" instance-groups managed create "${DOCKERWORKERID}" --zone "europe-west1-c" --base-instance-name "${DOCKERWORKERID}" --template "dorel-io--${PROJECTNAME}--docker-worker-template" --size "1" >> /var/log/dorel/debug.log 2>&1
 
-    # Collect the IP of the swarm worker
+    # Download the config file
+    echo $(((100/11)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Load config" 10 70 0
     gsutil cp gs://dorel-io--config-bucket/${PROJECTNAME}.json ~/${PROJECTNAME}.json
-    SWARMTOKEN=$(cat ~/${PROJECTNAME}.json | jq -r '.swarmManager.token')
-    SWARMMANAGERIP=$(cat ~/${PROJECTNAME}.json | jq -r '.swarmManager.ip')
 
-    # Connect to worker to the swarm manager
-    echo $(((100/3)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Connect the Swarm Worker to the Swarm Manager" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMWORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --swarmip \"${SWARMMANAGERIP}\" --swarmtoken \"${SWARMTOKEN}\"" >> /var/log/dorel/debug.log 2>&1
+    # Create Heatlth Check for loadbalancer
+    echo $(((100/11)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" http-health-checks create http-basic-check-${RANDOMUID} >> /var/log/dorel/debug.log 2>&1
+
+    # Create backend service for loadbalancer
+    echo $(((100/11)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" backend-services create "${DOCKERWORKERID}" --protocol HTTP --http-health-checks http-basic-check-${RANDOMUID} >> /var/log/dorel/debug.log 2>&1
+ 
+    # enable CDN
+    echo $(((100/11)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN" 10 70 0
+    gcloud beta --quiet compute backend-services update "${DOCKERWORKERID}" --enable-cdn --global
+
+    # create the backend service
+    echo $(((100/11)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" backend-services add-backend "${DOCKERWORKERID}" --instance-group "${DOCKERWORKERID}" --instance-group-zone "europe-west1-c"
+
+    # Create url map
+    echo $(((100/11)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP" 10 70 0
+    WORKERURLMAP="dorel-io--${PROJECTNAME}--urlmap-${RANDOMUID}"
+    gcloud --quiet compute --project "${PROJECTID}" url-maps create "${WORKERURLMAP}" --default-service "${DOCKERWORKERID}" >> /var/log/dorel/debug.log 2>&1
+
+    # Create proxy
+    echo $(((100/11)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
+    WORKERPROXY="dorel-io--${PROJECTNAME}--proxy-${RANDOMUID}"
+    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" >> /var/log/dorel/debug.log 2>&1
+
+    # Create forwarding rules
+    echo $(((100/11)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
+    WORKERFORWARDRULES="dorel-io--${PROJECTNAME}--forwardrule-${RANDOMUID}"
+    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "80" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
+
+    # Get the name of the worker
+    WORKERID=$(gcloud compute instance-groups managed list-instances "${DOCKERWORKERID}" --zone "europe-west1-c" | grep -P -o "(dorel-io--[^\s]+)")
+
+    # Setup the Docker worker
+    echo $(((100/11)*10)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Connect the Worker to the Manager" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${WORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/worker-setup.sh -O ~/worker-setup.sh && chmod +x ~/worker-setup.sh && sudo ~/worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Add worker name to JSON config
     node <<EOF
         var fs    = require("fs")
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
-        obj.workers.push({ "id": "${SWARMWORKERID}", "ip": "${SWARMWORKERIP}" });
+        obj.workers.push({ "id": "${DOCKERWORKERID}", "loadbalancer": { backendservice: ${DOCKERWORKERID}, "urlmap": "${WORKERURLMAP}", "proxy": "${WORKERPROXY}", "forwardrules": "${WORKERFORWARDRULES}", "workerIds": ["${WORKERID}"]  });
         fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
 EOF
     gsutil cp ~/${PROJECTNAME}.json gs://dorel-io--config-bucket/${PROJECTNAME}.json
     rm ~/${PROJECTNAME}.json
 
     # Show success message
-    dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The installation of the Swarm Worker is done" 0 0
+    dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The installation of the Worker is done. All information is stored in the JSON Config Bucket" 0 0
 
 fi
 
@@ -280,6 +299,20 @@ then
   # Give a headsup message
   dialog --pause "During the process you will be asked to create a MYSQL root password and you will get the Swarm Manager information returned. Make sure to store the MYSQL root password and Swarm information in a secure place. It will be needed to setup workers in the future.\n\n\nOutput will be available in: /var/log/dorel/debug.log" 20 0 25
 
+  # Collect manager type
+    MENU="Select a worker type?"
+    OPTIONS=("n1-standard-1" "Standard 1 CPU machine type with 1 virtual CPU and 3.75 GB of memory."
+             "n1-standard-2" "Standard 2 CPU machine type with 2 virtual CPUs and 7.5 GB of memory."
+             "n1-standard-4" "Standard 4 CPU machine type with 4 virtual CPUs and 15 GB of memory.")
+
+    DOCKERMANAGERTYPE=$(dialog --clear \
+                    --backtitle "$BACKTITLE" \
+                    --title "$TITLE" \
+                    --menu "$MENU" \
+                    $HEIGHT 0 $CHOICE_HEIGHT \
+                    "${OPTIONS[@]}" \
+                    2>&1 >/dev/tty)
+
   # Generate project name
   wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/random-nouns.list -O ~/random-nouns.list
   PROJECTNAME=$(shuf -n 1 random-nouns.list)-$(shuf -n 1 random-nouns.list)
@@ -287,20 +320,23 @@ then
   dialog --pause "Start generating project:\n\n${PROJECTNAME}" 14 0 25
 
   # Create instance template for worker
-  echo $(((100/9)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create template for swarm worker" 10 70 0
-  gcloud --quiet compute -q --verbosity=error --project "${PROJECTID}" instance-templates create "dorel-io--${PROJECTNAME}--docker-worker-template" --machine-type "n1-standard-2" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --tags "https-server" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-worker-template" >> /var/log/dorel/debug.log 2>&1
+  echo $(((100/9)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create template for worker" 10 70 0
+  gcloud --quiet compute -q --verbosity=error --project "${PROJECTID}" instance-templates create "dorel-io--${PROJECTNAME}--docker-worker-template" --machine-type "${DOCKERMANAGERTYPE}" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --tags "https-server" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-worker-template" >> /var/log/dorel/debug.log 2>&1
   
-  # Create instance template for swarm manager
-  echo $(((100/9)*2)) | dialog --gauge "Create template for swarm manager" 10 70 0
-  gcloud --quiet compute -q --verbosity=error --project "${PROJECTID}" instance-templates create "dorel-io--${PROJECTNAME}--docker-manager-template" --machine-type "n1-standard-1" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-manager-template" >> /var/log/dorel/debug.log 2>&1
+  # Create instance template for manager
+  echo $(((100/9)*2)) | dialog --gauge "Create template for manager" 10 70 0
+  gcloud --quiet compute -q --verbosity=error --project "${PROJECTID}" instance-templates create "dorel-io--${PROJECTNAME}--docker-manager-template" --machine-type "${DOCKERMANAGERTYPE}" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-manager-template" >> /var/log/dorel/debug.log 2>&1
+
+  # Generate UID
+  GenerateUid
   
   # Create Swarm Manager
-  echo $(((100/9)*3)) | dialog --gauge "Create the Swarm Manager Ubuntu Box" 10 70 0
-  GenerateIp
-  GenerateUid
-  SWARMMANAGERIP=${RANDOMIP}
-  SWARMMANAGERID="dorel-io--${PROJECTNAME}--docker-swarm-manager-${RANDOMUID}"
-  gcloud --quiet compute --project "${PROJECTID}" instances create "${SWARMMANAGERID}" --description "Dorel.io Docker Swarm manager" --zone "europe-west1-c" --machine-type "n1-standard-1" --subnet "default" --private-network-ip "${SWARMMANAGERIP}" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --tags "swarm-manager" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "20" --boot-disk-type "pd-standard" --boot-disk-device-name "swarm-manager" >> /var/log/dorel/debug.log 2>&1
+  # echo $(((100/9)*3)) | dialog --gauge "Create the Swarm Manager Ubuntu Box" 10 70 0
+  # GenerateIp
+  # GenerateUid
+  # SWARMMANAGERIP=${RANDOMIP}
+  # SWARMMANAGERID="dorel-io--${PROJECTNAME}--docker-swarm-manager-${RANDOMUID}"
+  # gcloud --quiet compute --project "${PROJECTID}" instances create "${SWARMMANAGERID}" --description "Dorel.io Docker Swarm manager" --zone "europe-west1-c" --machine-type "n1-standard-1" --subnet "default" --private-network-ip "${SWARMMANAGERIP}" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --tags "swarm-manager" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "20" --boot-disk-type "pd-standard" --boot-disk-device-name "swarm-manager" >> /var/log/dorel/debug.log 2>&1
 
   # Create SQL
   echo $(((100/9)*4)) | dialog --gauge "Create cloud SQL with replica (might take some time)" 10 70 0
@@ -320,18 +356,18 @@ then
   SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
 
   # Setup swarm manager inside box
-  echo $(((100/9)*7)) | dialog --gauge "Install the Swarm Manager" 10 70 0
-  gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-manager-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-manager-setup.sh && sudo ~/host-manager-setup.sh --project \"${PROJECTID}\" --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\"" >> /var/log/dorel/debug.log 2>&1
+  # echo $(((100/9)*7)) | dialog --gauge "Install the Swarm Manager" 10 70 0
+  # gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-manager-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-manager-setup.sh && sudo ~/host-manager-setup.sh --project \"${PROJECTID}\" --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\"" >> /var/log/dorel/debug.log 2>&1
 
   # Collect swarm information 
-  echo $(((100/9)*8)) | dialog --gauge "Collect Swarm info" 10 70 0
-  SWARMINFO=$(gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "cat ~/config-dockerswarm")
-  dialog --infobox "Save this information for connecting Swarm workers in the future:\n${SWARMMANAGERID}" 0 0 >> /var/log/dorel/debug.log
-  SWARMTOKEN=$(gcloud compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "cat ~/config-dockerswarm")
+  # echo $(((100/9)*8)) | dialog --gauge "Collect Swarm info" 10 70 0
+  # SWARMINFO=$(gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "cat ~/config-dockerswarm")
+  # dialog --infobox "Save this information for connecting Swarm workers in the future:\n${SWARMMANAGERID}" 0 0 >> /var/log/dorel/debug.log
+  # SWARMTOKEN=$(gcloud compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "cat ~/config-dockerswarm")
 
   # Create the JSON object and Store to bucket
   echo $(((100/9)*9)) | dialog --gauge "Store config to config bucket in file: ${PROJECTNAME}.json" 10 70 0
-  PROJECTOBJECT="{ \"projectName\": \"dorel-io--${PROJECTNAME}\", \"projectNameShort\": \"${PROJECTNAME}\", \"swarmManager\": { \"id\": \"${SWARMMANAGERID}\", \"token\": \"${SWARMTOKEN}\", \"ip\": \"${SWARMMANAGERIP}\" }, \"db\": { \"id\": \"${SQLID}\" }, \"workers\": [] }"
+  PROJECTOBJECT="{ \"projectName\": \"dorel-io--${PROJECTNAME}\", \"projectNameShort\": \"${PROJECTNAME}\", \"db\": { \"id\": \"${SQLID}\" }, \"workers\": [] }"
   gsutil --quiet mb -p "${PROJECTID}" -c "NEARLINE" -l "europe-west1" "gs://dorel-io--config-bucket" || true
   touch ~/${PROJECTNAME}.json
   echo ${PROJECTOBJECT} > ~/${PROJECTNAME}.json
