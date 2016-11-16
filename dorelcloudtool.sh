@@ -288,7 +288,7 @@ then
     WORKERID=$(gcloud compute instance-groups managed list-instances "${DOCKERWORKERID}" --zone "europe-west1-c" | grep -P -o "(dorel-io--[^\s]+)")
 
     # Setup the Docker worker
-    SQLID=$(cat ${PROJECTNAME} | jq -r '.db.id')
+    SQLID=$(cat ${PROJECTNAME}.json | jq -r '.db.id')
     SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
     GenerateSqlPassword
 
