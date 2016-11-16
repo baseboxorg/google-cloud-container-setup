@@ -18,7 +18,7 @@ TITLE="Dorel.io SETUP"
 function GenerateSqlPassword {
     # Get first time
     exec 3>&1;
-    PASSWORD1=$(dialog --passwordbox "Mysql root password\n(make sure to store this password!)." 0 0 2>&1 1>&3);
+    PASSWORD1=$(dialog --passwordbox "Mysql root password." 0 0 2>&1 1>&3);
     exitcode=$?;
     exec 3>&-;
 
@@ -148,7 +148,7 @@ MENU="What do you want to do?"
 OPTIONS=(1 "New Wordpress installation"
          2 "Recreate Wordpress installation"
          3 "Delete Wordpress installation"
-         4 "Create new Docker worker within a Docker project"
+         4 "Create new Docker worker within a sub-project"
          5 "Create a new Docker project")
 
 CHOICE=$(dialog --clear \
@@ -198,17 +198,29 @@ then
     # Get Wordpress data
     GetWordpressData
 
-    # Get the id of the swarm manager
-
-    # Generate the Docker Redis container
-    echo $(((100/3)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
-
-    # Generate the Docker PHP FPM container
-    echo $(((100/3)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
+    # Select the machine
+    # AUTO SELECT MACHINE WITH LEAST LOAD
+    #clear
+    #MACHINESELECTLIST=()
+    #while read -r line; do
+    #    toutput=$(echo "$line" | grep -Po "(dorel-io--[^\s]+)")
+    #    MACHINESELECTLIST+=("$toutput" "x")
+    #done < <( gcloud compute instance-groups list )
+    #MACHINECHOICE=$(dialog --title "List file of directory /home" --menu "Select your machine" 24 80 17 "${MACHINESELECTLIST[@]}" 3>&2 2>&1 1>&3)
 
     # Generate the Docker Wordpress container
-    echo $(((100/3)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    GenerateUid
+    echo $(((100/4)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${MACHINECHOICE}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
+
+    # Generate the Docker Redis container
+    echo $(((100/4)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
+
+    # Generate the Docker PHP FPM container
+    echo $(((100/4)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
+
+    # Show success message
+    dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new Wordpress instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${ADMINEMAIL} and password: ${RANDOMUID}" 0 0
 
     ##
     # Add container routing https://cloud.google.com/compute/docs/load-balancing/http/content-based-example
@@ -230,56 +242,64 @@ then
     DOCKERWORKERID="dorel-io--${PROJECTNAME}--docker-worker-${RANDOMUID}"
 
     # Create the worker
-    echo $(((100/11)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create a worker" 10 70 0
+    echo $(((100/12)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create a worker" 10 70 0
     gcloud --quiet compute --project "${PROJECTID}" instance-groups managed create "${DOCKERWORKERID}" --zone "europe-west1-c" --base-instance-name "${DOCKERWORKERID}" --template "dorel-io--${PROJECTNAME}--docker-worker-template" --size "1" >> /var/log/dorel/debug.log 2>&1
 
     # Download the config file
-    echo $(((100/11)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Load config" 10 70 0
+    echo $(((100/12)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Load config" 10 70 0
     gsutil cp gs://dorel-io--config-bucket/${PROJECTNAME}.json ~/${PROJECTNAME}.json
 
     # Create Heatlth Check for loadbalancer
-    echo $(((100/11)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service" 10 70 0
+    echo $(((100/12)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service" 10 70 0
     gcloud --quiet compute --project "${PROJECTID}" http-health-checks create http-basic-check-${RANDOMUID} >> /var/log/dorel/debug.log 2>&1
 
     # Create backend service for loadbalancer
-    echo $(((100/11)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service" 10 70 0
+    echo $(((100/12)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service" 10 70 0
     gcloud --quiet compute --project "${PROJECTID}" backend-services create "${DOCKERWORKERID}" --protocol HTTP --http-health-checks http-basic-check-${RANDOMUID} >> /var/log/dorel/debug.log 2>&1
  
     # enable CDN
-    echo $(((100/11)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN" 10 70 0
+    echo $(((100/12)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN" 10 70 0
     gcloud beta --quiet compute backend-services update "${DOCKERWORKERID}" --enable-cdn --global
 
     # create the backend service
-    echo $(((100/11)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer" 10 70 0
+    echo $(((100/12)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer" 10 70 0
     gcloud --quiet compute --project "${PROJECTID}" backend-services add-backend "${DOCKERWORKERID}" --instance-group "${DOCKERWORKERID}" --instance-group-zone "europe-west1-c"
 
     # Create url map
-    echo $(((100/11)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP" 10 70 0
+    echo $(((100/12)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP" 10 70 0
     WORKERURLMAP="dorel-io--${PROJECTNAME}--urlmap-${RANDOMUID}"
     gcloud --quiet compute --project "${PROJECTID}" url-maps create "${WORKERURLMAP}" --default-service "${DOCKERWORKERID}" >> /var/log/dorel/debug.log 2>&1
 
     # Create proxy
-    echo $(((100/11)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
+    echo $(((100/12)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
     WORKERPROXY="dorel-io--${PROJECTNAME}--proxy-${RANDOMUID}"
     gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" >> /var/log/dorel/debug.log 2>&1
 
     # Create forwarding rules
-    echo $(((100/11)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
+    echo $(((100/12)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
     WORKERFORWARDRULES="dorel-io--${PROJECTNAME}--forwardrule-${RANDOMUID}"
     gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "80" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
+
+    # Wait for command to finish
+    echo $(((100/12)*10)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Wait for creation of Linux box" 10 70 0
+    sleep 5 # Need to wait until exec is done.
 
     # Get the name of the worker
     WORKERID=$(gcloud compute instance-groups managed list-instances "${DOCKERWORKERID}" --zone "europe-west1-c" | grep -P -o "(dorel-io--[^\s]+)")
 
     # Setup the Docker worker
-    echo $(((100/11)*10)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Connect the Worker to the Manager" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${WORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/worker-setup.sh -O ~/worker-setup.sh && chmod +x ~/worker-setup.sh && sudo ~/worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    SQLID=$(cat melodic-level.json | jq -r '.db.id')
+    SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
+    GenerateSqlPassword
+
+    echo $(((100/12)*11)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setting up Docker, Nginx and Let's Encrypt on the worker (might take some time)" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${WORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" --project \"${PROJECTID}\" && rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Add worker name to JSON config
     node <<EOF
         var fs    = require("fs")
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
-        obj.workers.push({ "id": "${DOCKERWORKERID}", "loadbalancer": { backendservice: ${DOCKERWORKERID}, "urlmap": "${WORKERURLMAP}", "proxy": "${WORKERPROXY}", "forwardrules": "${WORKERFORWARDRULES}", "workerIds": ["${WORKERID}"]  });
+        obj.workers.push({ "id": "${DOCKERWORKERID}", "loadbalancer": { "backendservice": "${DOCKERWORKERID}", "urlmap": "${WORKERURLMAP}", "proxy": "${WORKERPROXY}", "forwardrules": "${WORKERFORWARDRULES}", "workerIds": ["${WORKERID}"]  }});
         fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
 EOF
     gsutil cp ~/${PROJECTNAME}.json gs://dorel-io--config-bucket/${PROJECTNAME}.json
@@ -297,7 +317,7 @@ if [[ "$TASK" == "init_google_cloud" ]]
 then
   
   # Give a headsup message
-  dialog --pause "During the process you will be asked to create a MYSQL root password and you will get the Swarm Manager information returned. Make sure to store the MYSQL root password and Swarm information in a secure place. It will be needed to setup workers in the future.\n\n\nOutput will be available in: /var/log/dorel/debug.log" 20 0 25
+  dialog --pause "During the process you will be asked to create a MYSQL root password and you will get the project information returned. Make sure to store the MYSQL root password and Swarm information in a secure place. It will be needed to setup workers in the future.\n\n\nOutput will be available in: /var/log/dorel/debug.log" 20 0 25
 
   # Collect manager type
     MENU="Select a worker type?"
@@ -330,14 +350,6 @@ then
   # Generate UID
   GenerateUid
   
-  # Create Swarm Manager
-  # echo $(((100/9)*3)) | dialog --gauge "Create the Swarm Manager Ubuntu Box" 10 70 0
-  # GenerateIp
-  # GenerateUid
-  # SWARMMANAGERIP=${RANDOMIP}
-  # SWARMMANAGERID="dorel-io--${PROJECTNAME}--docker-swarm-manager-${RANDOMUID}"
-  # gcloud --quiet compute --project "${PROJECTID}" instances create "${SWARMMANAGERID}" --description "Dorel.io Docker Swarm manager" --zone "europe-west1-c" --machine-type "n1-standard-1" --subnet "default" --private-network-ip "${SWARMMANAGERIP}" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --tags "swarm-manager" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "20" --boot-disk-type "pd-standard" --boot-disk-device-name "swarm-manager" >> /var/log/dorel/debug.log 2>&1
-
   # Create SQL
   echo $(((100/9)*4)) | dialog --gauge "Create cloud SQL with replica (might take some time)" 10 70 0
   GenerateUid
@@ -355,16 +367,6 @@ then
   gcloud --quiet sql --project "${PROJECTID}" instances set-root-password "${SQLID}" --password "${PASSWORD1}" >> /var/log/dorel/debug.log 2>&1
   SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
 
-  # Setup swarm manager inside box
-  # echo $(((100/9)*7)) | dialog --gauge "Install the Swarm Manager" 10 70 0
-  # gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-manager-setup.sh -O ~/host-manager-setup.sh && chmod +x ~/host-manager-setup.sh && sudo ~/host-manager-setup.sh --project \"${PROJECTID}\" --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\"" >> /var/log/dorel/debug.log 2>&1
-
-  # Collect swarm information 
-  # echo $(((100/9)*8)) | dialog --gauge "Collect Swarm info" 10 70 0
-  # SWARMINFO=$(gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "cat ~/config-dockerswarm")
-  # dialog --infobox "Save this information for connecting Swarm workers in the future:\n${SWARMMANAGERID}" 0 0 >> /var/log/dorel/debug.log
-  # SWARMTOKEN=$(gcloud compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${SWARMMANAGERID}" --command "cat ~/config-dockerswarm")
-
   # Create the JSON object and Store to bucket
   echo $(((100/9)*9)) | dialog --gauge "Store config to config bucket in file: ${PROJECTNAME}.json" 10 70 0
   PROJECTOBJECT="{ \"projectName\": \"dorel-io--${PROJECTNAME}\", \"projectNameShort\": \"${PROJECTNAME}\", \"db\": { \"id\": \"${SQLID}\" }, \"workers\": [] }"
@@ -375,7 +377,7 @@ then
   rm ~/${PROJECTNAME}.json
 
   # Show finish message
-  dialog --pause "If you see this message, the initial cloud setup is done. The following object is stored in the config bucket, you might want to store it too.\n\n\n${PROJECTOBJECT}" 20 0 60
+  dialog --pause "If you see this message, the initial cloud setup is done. Make sure to save the sub-project name: ${PROJECTNAME}" 20 0 60
 
 fi
 
