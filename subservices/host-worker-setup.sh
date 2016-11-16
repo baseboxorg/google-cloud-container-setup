@@ -18,12 +18,16 @@ while [[ $# -gt 1 ]]
 do
 key="$1"
 case $key in
-    -t|--swarmtoken)
-    SWARMTOKEN="$2"
+    -i|--sqlip)
+    DBHOST="$2"
     shift # past argument
     ;;
-    -i|--swarmip)
-    SWARMIP="$2"
+    -p|--sqlpass)
+    SQLPASS="$2"
+    shift # past argument
+    ;;
+    -P|--project)
+    PROJECTID="$2"
     shift # past argument
     ;;
     --default)
@@ -39,17 +43,32 @@ done
 ###
 # Validate if needed arguments are available
 ###
-if [ -z ${SWARMTOKEN} ]; then echo "-t or --swarmtoken is unset | abort";   exit 1; fi
-if [ -z ${SWARMIP} ];    then echo "-i or --swarmip is unset | abort"; exit 1; fi
+if [ -z ${DBHOST} ];     then echo "-i or --sqlip is unset | abort";   exit 1; fi
+if [ -z ${SQLPASS} ];    then echo "-p or --sqlpass is unset | abort"; exit 1; fi
+if [ -z ${PROJECTID} ];  then echo "-P or --project is unset | abort"; exit 1; fi
 
-# Update
+# Update and install dialog
 apt-get update -qq -y
+apt-get install dialog -qq -y
 
 # Install security updates
 apt-get unattended-upgrades -d -qq -y
 
-# Install jq for parsing jquery
-apt-get install jq -qq -y
+# get the internal ip host
+INTERNALHOST=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
+
+# setup for gcloud (add debs)
+export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
+echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+# Install MYSQL client and set pass and host
+apt-get install mysql-client-5.7 -qq -y
+mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --password="${SQLPASS}"
+
+# Install gcloud
+apt-get install google-cloud-sdk
+printf "1\n${PROJECTID}" | gcloud init
 
 # Install Docker deps
 apt-get install apt-transport-https ca-certificates -qq -y
@@ -84,9 +103,11 @@ apt-get install docker-engine -qq -y
 # Start the Docker service
 service docker start
 
-# Make main dir to connect Wordpress wp-content directories to
-# DISABLED, MIGHT BE REMOVED ON CLEANUP
-# mkdir -m 777 -p /var/wordpress-content
+# Install NGINX (disabled for now, might be removed during checkup)
+apt-get install nginx -qq -y
 
-# Add this machine to the swarm
-docker swarm join --token ${SWARMTOKEN} ${SWARMIP}:2377
+# Install SSL (disabled for now, might be removed during checkup)
+apt-get install letsencrypt -qq -y
+
+# Make main dir to connect Wordpress wp-content directories to
+mkdir -m 777 -p /var/wordpress-content
