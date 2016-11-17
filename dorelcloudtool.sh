@@ -75,6 +75,56 @@ function GetWordpressData {
 
 }
 
+# Set route 53 keys
+function SetRoute53Keys {
+    AWSACCESSKEY=""
+    AWSSECKEY=""
+    # open fd
+    exec 3>&1
+    # Store data to $VALUES variable
+    VALUES=$(dialog --output-separator "," \
+            --backtitle "Linux User Managment" \
+            --title "Useradd" \
+            --form "Create a new user" \
+        15 50 0 \
+                "Access Key Id:"     1 1 "$AWSACCESSKEY" 1 24 40 0 \
+                "Secret Access Key:" 2 1 "$AWSSECKEY"    2 24 40 0 \
+        2>&1 1>&3)
+    exec 3>&-
+
+    set -- "$VALUES" 
+    IFS=","; declare -a Array=($*) 
+
+    mkdir -p ~/.aws
+    echo "[default]" > ~/.aws/credentials
+    echo "aws_access_key_id=${Array[0]}" >> ~/.aws/credentials
+    echo "aws_secret_access_key=${Array[1]}" >> ~/.aws/credentials
+
+    AWSCHECK=$(node <<EOF
+        var AWS = require('aws-sdk');
+        var route53 = new AWS.Route53();
+        route53
+            .listHostedZones({}, function(err, data) {
+                if (err) {
+                    console.log(false);
+                } else {
+                    console.log(true);
+                }
+            });
+EOF
+)
+
+    if [[ "$AWSCHECK" == "false" ]]
+    then
+        dialog --msgbox "The cloud keys seem to be incorrect, please try again." 0 0
+        SetRoute53Keys
+    else
+        dialog --msgbox "SUCCESS! The script will restart." 0 0
+        CURRENTSCRIPT=`basename "$0"`
+        bash $CURRENTSCRIPT
+    fi
+}
+
 # function generate an internal IP (CIDR range = 10.132.0.0/20)
 function GenerateIp {
     RANDOMIP=10.132.$((0 + RANDOM % 16)).$((1 + RANDOM % 256))
@@ -108,6 +158,7 @@ mkdir -p ~/.cloudshell
 touch ~/.cloudshell/no-apt-get-warning
 sudo apt-get -qq -y update
 sudo apt-get -qq -y install dialog jq
+npm install aws-sdk
 
 # Setup the log file
 sudo mkdir -p /var/log/dorel
@@ -149,7 +200,8 @@ OPTIONS=(1 "New Wordpress installation"
          2 "Recreate Wordpress installation"
          3 "Delete Wordpress installation"
          4 "Create new Docker worker within a sub-project"
-         5 "Create a new Docker project")
+         5 "Create a new Docker project"
+         6 "Setup Route 53 credentials")
 
 CHOICE=$(dialog --clear \
                 --backtitle "$BACKTITLE" \
@@ -175,6 +227,9 @@ case $CHOICE in
             ;;
         5)
             TASK=$(echo init_google_cloud)
+            ;;
+        6)
+            TASK=$(echo route53_setup)
             ;;
 esac
 
@@ -378,7 +433,11 @@ then
 
   # Show finish message
   dialog --pause "If you see this message, the initial cloud setup is done. Make sure to save the sub-project name: ${PROJECTNAME}" 20 0 60
+fi
 
+if [[ "$TASK" == "route53_setup" ]]
+then
+    SetRoute53Keys
 fi
 
 # Clear the screen when done
