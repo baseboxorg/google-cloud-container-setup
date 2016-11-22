@@ -100,7 +100,7 @@ function SetRoute53Keys {
     echo "aws_access_key_id=${Array[0]}" >> ~/.aws/credentials
     echo "aws_secret_access_key=${Array[1]}" >> ~/.aws/credentials
 
-    AWSCHECK=$(node <<EOF
+    AWSCHECK=$(nodejs <<EOF
         var AWS = require('aws-sdk');
         var route53 = new AWS.Route53();
         route53
@@ -152,7 +152,7 @@ function SetSubProjectId {
 
 function GetAndSetCerts {
     # Create certs, this Node script checks if there is access to AWS, finds the hosted zone and runs certbot
-node <<EOF
+nodejs <<EOF
         'use strict';
 
         var domain = "${CERTDOMAIN}",
@@ -160,7 +160,7 @@ node <<EOF
 
         var domainSplit = domain.split('.');
 
-        const topDomain = domainSplit[domainSplit.length-2]+'.'+domainSplit[domainSplit.length-1],
+        var topDomain = domainSplit[domainSplit.length-2]+'.'+domainSplit[domainSplit.length-1],
             AWS       = require('aws-sdk'),
             route53   = new AWS.Route53(),
             spawn     = require( 'child_process' ).spawn,
@@ -186,7 +186,7 @@ node <<EOF
 
         certbotCommand.stdin.setEncoding('utf-8');
 
-        certbotCommand.stdout.on( 'data', data => {
+        certbotCommand.stdout.on( 'data', function(data) {
             if(IsJsonString(data) === true){
                 // Check if this script has the challenges
                 var JSONOBJECT1 = JSON.parse(data);
@@ -220,7 +220,7 @@ node <<EOF
                                                 Value: '"' + JSONOBJECT1.validation + '"'
                                             }
                                             ],
-                                            TTL: 300
+                                            TTL: 60
                                         }
                                         }
                                     ],
@@ -236,13 +236,14 @@ node <<EOF
                                         console.log('ERROR IN changeResourceRecordSets');
                                         console.log(err);
                                     } else {
-                                        certbotCommand.stdin.write("next\n");
+                                        setTimeout(function(){
+                                            certbotCommand.stdin.write("next\n");
+                                        }, 60000); // some time to process
                                     }
                                     });
                                 }
                             });
                         });
-
                 }
             }
         });
@@ -251,10 +252,11 @@ node <<EOF
             console.log(err);
         });
 
-        certbotCommand.on( 'close', code => {
-            console.log( `child process exited with code ${code}` );
+        certbotCommand.on( 'close', function(code) {
+            console.log( 'child process exited with code ' + code );
         });
 EOF
+
 }
 
 ###
@@ -265,14 +267,15 @@ EOF
 set -e
 clear
 echo "Setting up Dorel Juvenile Google Cloud setup by @bobvanluijt..."
+cd ~
 mkdir -p ~/.cloudshell
 touch ~/.cloudshell/no-apt-get-warning
 sudo apt-get -qq -y update
-sudo apt-get -qq -y install dialog jq python-pip
+sudo apt-get -qq -y install dialog npm jq letsencrypt python-pip
 npm install aws-sdk
-sudo pip install --upgrade pip
-sudo pip install certbot
-sudo pip install certbot-external-auth
+sudo pip install --upgrade pip -q
+sudo pip install certbot -q
+sudo pip install certbot-external-auth -q
 
 # Setup the log file
 sudo mkdir -p /var/log/dorel
@@ -367,6 +370,9 @@ then
     # Get Wordpress data
     GetWordpressData
 
+    # Download config json
+    gsutil cp gs://dorel-io--config-bucket/${PROJECTNAME}.json ~/${PROJECTNAME}.json
+
     # Select the machine
     # AUTO SELECT MACHINE WITH LEAST LOAD
     #clear
@@ -383,7 +389,7 @@ then
     # Generate the Docker Wordpress container
     GenerateUid
     echo $(((100/7)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${MACHINECHOICE}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    # gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${MACHINECHOICE}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Generate the Docker Redis container
     echo $(((100/7)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
@@ -391,42 +397,92 @@ then
     # Generate the Docker PHP FPM container
     echo $(((100/7)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
 
-
-
+    # Set proxy information
+    WORKERPROXY=$(nodejs <<EOF
+        var fs    = require("fs")
+        var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
+        obj.workers.forEach(function(val, key){
+            if(val.id === "${MACHINECHOICE}"){
+                console.log(val.loadbalancer.proxy);
+            }
+        })
+EOF
+)
+    WORKERFORWARDRULES=$(nodejs <<EOF
+        var fs    = require("fs")
+        var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
+        obj.workers.forEach(function(val, key){
+            if(val.id === "${MACHINECHOICE}"){
+                console.log(val.loadbalancer.forwardrules);
+            }
+        })
+EOF
+)
+    WORKERURLMAP=$(nodejs <<EOF
+        var fs    = require("fs")
+        var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
+        obj.workers.forEach(function(val, key){
+            if(val.id === "${MACHINECHOICE}"){
+                console.log(val.loadbalancer.urlmap);
+            }
+        })
+EOF
+)
 
     # CERT I: Create certs for top domain
     echo $(((100/7)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create SPA certs" 10 70 0
     CERTDOMAIN=$(echo ${WEBSITEACCESSPOINT})
+    CERTNAME=$(echo ${CERTDOMAIN//./-})
     CERTEMAIL=$(echo "IO@dorel.eu")
     GetAndSetCerts
 
     # CERT I: Add certs to loadbalancer
-    gcloud beta compute ssl-certificates create "NAME" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/chain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/rivkey.pem"
+    gcloud beta compute ssl-certificates create "${CERTNAME}" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem"
 
     # CERT I: Create proxy to loadbalancer
     echo $(((100/12)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
-    WORKERPROXY="dorel-io--${PROJECTNAME}--proxy-${RANDOMUID}"
-    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" --ssl-certificate "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
+    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" --ssl-certificate "${CERTNAME}" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create forwarding rules to loadbalancer
     echo $(((100/12)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
-    WORKERFORWARDRULES="dorel-io--${PROJECTNAME}--forwardrule-${RANDOMUID}"
-    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "80" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
+    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "443" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
 
-
-
-
-    # Create certs for wordpress domain
-    echo $(((100/7)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create Wordpress API certs" 10 70 0
+    # CERT II: Create certs for top domain
+    echo $(((100/7)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create SPA certs" 10 70 0
     CERTDOMAIN=$(echo wrps.api.${WEBSITEACCESSPOINT})
+    CERTNAME=$(echo ${CERTDOMAIN//./-})
     CERTEMAIL=$(echo "IO@dorel.eu")
     GetAndSetCerts
 
-    # Create certs for mage domain
-    echo $(((100/7)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create Mage API certs" 10 70 0
+    # CERT II: Add certs to loadbalancer
+    gcloud beta compute ssl-certificates create "${CERTNAME}" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem"
+
+    # CERT II: Create proxy to loadbalancer
+    echo $(((100/12)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
+
+    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" --ssl-certificate "${CERTNAME}" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT II: Create forwarding rules to loadbalancer
+    echo $(((100/12)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "443" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT III: Create certs for top domain
+    echo $(((100/7)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create SPA certs" 10 70 0
     CERTDOMAIN=$(echo mage.api.${WEBSITEACCESSPOINT})
+    CERTNAME=$(echo ${CERTDOMAIN//./-})
     CERTEMAIL=$(echo "IO@dorel.eu")
     GetAndSetCerts
+
+    # CERT III: Add certs to loadbalancer
+    gcloud beta compute ssl-certificates create "${CERTNAME}" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem"
+
+    # CERT III: Create proxy to loadbalancer
+    echo $(((100/12)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" --ssl-certificate "${CERTNAME}" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT III: Create forwarding rules to loadbalancer
+    echo $(((100/12)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "443" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
 
     # Show success message
     dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new Wordpress instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${ADMINEMAIL} and password: ${RANDOMUID}" 0 0
@@ -495,7 +551,7 @@ then
     gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${WORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" --project \"${PROJECTID}\" && rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Add worker name to JSON config
-    node <<EOF
+    nodejs <<EOF
         var fs    = require("fs")
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
         obj.workers.push({ "id": "${DOCKERWORKERID}", "loadbalancer": { "backendservice": "${DOCKERWORKERID}", "urlmap": "${WORKERURLMAP}", "proxy": "${WORKERPROXY}", "forwardrules": "${WORKERFORWARDRULES}", "workerIds": ["${WORKERID}"]  }});
