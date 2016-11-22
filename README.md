@@ -22,9 +22,13 @@ _Note: You will have two types of projects: I. The Google Cloud project and (II)
 
 1. Go to the Google Cloud console.
 2. Open the terminal window.
-3. Download the core bash file `$ wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/dorelcloudtool.sh`
-4. Set permissions `$ chmod +x ./dorelcloudtool.sh`
-5. Run `$ ./dorelcloudtool.sh`
+3. Create a new machine to run the cloud tool: `$ gcloud compute --project "dorel-io-dev" instances create "gcloud-terminal" --zone "europe-west1-c" --machine-type "f1-micro" --subnet "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/cloud-platform" --tags "https-server" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161115" --boot-disk-size "10" --boot-disk-type "pd-standard" --boot-disk-device-name "gcloud-terminal"`
+4. SSH into the new machine and go to the home dir `$ cd ~`
+5. Run `$ sudo su`
+6. Download the core bash file `$ wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/dorelcloudtool.sh`
+7. Set permissions `$ chmod +x ./dorelcloudtool.sh`
+8. Run `$ ./dorelcloudtool.sh`
+9. When running for the first time on a new machine, make sure to run the Route 53 Authentication command
 
 _Note I: to use the tool from another branche change 'master' into -for example- 'develop' in the download url_
 
