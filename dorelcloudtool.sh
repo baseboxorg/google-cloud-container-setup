@@ -150,6 +150,117 @@ function SetSubProjectId {
     fi 
 }
 
+function GetAndSetCerts {
+    # Create certs, this Node script checks if there is access to AWS, finds the hosted zone and runs certbot
+node <<EOF
+        'use strict';
+
+        var domain = "${CERTDOMAIN}",
+            email  = "${CERTEMAIL}";
+
+        var domainSplit = domain.split('.');
+
+        const topDomain = domainSplit[domainSplit.length-2]+'.'+domainSplit[domainSplit.length-1],
+            AWS       = require('aws-sdk'),
+            route53   = new AWS.Route53(),
+            spawn     = require( 'child_process' ).spawn,
+            certbotCommand = spawn( 'certbot',
+                ['--staging',
+                '--text', '--agree-tos', '--email', email,
+                '--expand', '--renew-by-default',
+                '--configurator', 'certbot-external-auth:out',
+                '--certbot-external-auth:out-public-ip-logging-ok',
+                '-d', domain,
+                '--renew-by-default',
+                '--preferred-challenges', 'dns',
+                'certonly']);
+
+        function IsJsonString(str) {
+            try {
+                JSON.parse(str);
+            } catch (e) {
+                return false;
+            }
+            return true;
+        }
+
+        certbotCommand.stdin.setEncoding('utf-8');
+
+        certbotCommand.stdout.on( 'data', data => {
+            if(IsJsonString(data) === true){
+                // Check if this script has the challenges
+                var JSONOBJECT1 = JSON.parse(data);
+                if(typeof JSONOBJECT1.txt_domain !== 'undefined' && typeof JSONOBJECT1.validation !== 'undefined'){
+                    /**
+                    * Create the settings in route 53
+                    */
+                    route53
+                        .listHostedZones({}, function(err, data) {
+
+                            if(err){
+                                console.log('false');
+                                console.log('ERROR IN listHostedZones');
+                                console.log(err);
+                            }
+
+                            data
+                            .HostedZones
+                            .forEach(function(val, key){
+                                if(val.Name.indexOf(topDomain) !== -1){
+                                var params = {
+                                    ChangeBatch: {
+                                    Changes: [
+                                        {
+                                        Action: 'CREATE',
+                                        ResourceRecordSet: {
+                                            Name: JSONOBJECT1.txt_domain,
+                                            Type: 'TXT',
+                                            ResourceRecords: [
+                                            {
+                                                Value: '"' + JSONOBJECT1.validation + '"'
+                                            }
+                                            ],
+                                            TTL: 300
+                                        }
+                                        }
+                                    ],
+                                    Comment: 'Automated Creation from Dorel Cloud tool'
+                                    },
+                                    HostedZoneId: val.Id
+                                };
+
+                                route53
+                                    .changeResourceRecordSets(params, function(err, data) {
+                                    if (err) {
+                                        console.log(false);
+                                        console.log('ERROR IN changeResourceRecordSets');
+                                        console.log(err);
+                                    } else {
+                                        certbotCommand.stdin.write("next\n");
+                                    }
+                                    });
+                                }
+                            });
+                        });
+
+                }
+            }
+        });
+
+        certbotCommand.stdout.on('error', function (err) {
+            console.log(err);
+        });
+
+        certbotCommand.on( 'close', code => {
+            console.log( `child process exited with code ${code}` );
+        });
+EOF
+}
+
+###
+# INIT
+###
+
 # Setup the shell
 set -e
 clear
@@ -157,8 +268,11 @@ echo "Setting up Dorel Juvenile Google Cloud setup by @bobvanluijt..."
 mkdir -p ~/.cloudshell
 touch ~/.cloudshell/no-apt-get-warning
 sudo apt-get -qq -y update
-sudo apt-get -qq -y install dialog jq
+sudo apt-get -qq -y install dialog jq python-pip
 npm install aws-sdk
+sudo pip install --upgrade pip
+sudo pip install certbot
+sudo pip install certbot-external-auth
 
 # Setup the log file
 sudo mkdir -p /var/log/dorel
@@ -262,23 +376,64 @@ then
     #    MACHINESELECTLIST+=("$toutput" "x")
     #done < <( gcloud compute instance-groups list )
     #MACHINECHOICE=$(dialog --title "List file of directory /home" --menu "Select your machine" 24 80 17 "${MACHINESELECTLIST[@]}" 3>&2 2>&1 1>&3)
+    
+    # THIS NEEDS TO BE AUTOMATED
+    MACHINECHOICE=$(echo "dorel-io--economic-fearful--docker-worker-zhll63-jk6y")
 
     # Generate the Docker Wordpress container
     GenerateUid
-    echo $(((100/4)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
+    echo $(((100/7)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
     gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${MACHINECHOICE}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Generate the Docker Redis container
-    echo $(((100/4)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
+    echo $(((100/7)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
 
     # Generate the Docker PHP FPM container
-    echo $(((100/4)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
+    echo $(((100/7)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
+
+
+
+
+    # CERT I: Create certs for top domain
+    echo $(((100/7)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create SPA certs" 10 70 0
+    CERTDOMAIN=$(echo ${WEBSITEACCESSPOINT})
+    CERTEMAIL=$(echo "IO@dorel.eu")
+    GetAndSetCerts
+
+    # CERT I: Add certs to loadbalancer
+    gcloud beta compute ssl-certificates create "NAME" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/chain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/rivkey.pem"
+
+    # CERT I: Create proxy to loadbalancer
+    echo $(((100/12)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
+    WORKERPROXY="dorel-io--${PROJECTNAME}--proxy-${RANDOMUID}"
+    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" --ssl-certificate "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT I: Create forwarding rules to loadbalancer
+    echo $(((100/12)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
+    WORKERFORWARDRULES="dorel-io--${PROJECTNAME}--forwardrule-${RANDOMUID}"
+    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "80" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
+
+
+
+
+    # Create certs for wordpress domain
+    echo $(((100/7)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create Wordpress API certs" 10 70 0
+    CERTDOMAIN=$(echo wrps.api.${WEBSITEACCESSPOINT})
+    CERTEMAIL=$(echo "IO@dorel.eu")
+    GetAndSetCerts
+
+    # Create certs for mage domain
+    echo $(((100/7)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create Mage API certs" 10 70 0
+    CERTDOMAIN=$(echo mage.api.${WEBSITEACCESSPOINT})
+    CERTEMAIL=$(echo "IO@dorel.eu")
+    GetAndSetCerts
 
     # Show success message
     dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new Wordpress instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${ADMINEMAIL} and password: ${RANDOMUID}" 0 0
 
     ##
     # Add container routing https://cloud.google.com/compute/docs/load-balancing/http/content-based-example
+    # Also add SSL certs to https
     ##
 
 fi
@@ -325,16 +480,6 @@ then
     WORKERURLMAP="dorel-io--${PROJECTNAME}--urlmap-${RANDOMUID}"
     gcloud --quiet compute --project "${PROJECTID}" url-maps create "${WORKERURLMAP}" --default-service "${DOCKERWORKERID}" >> /var/log/dorel/debug.log 2>&1
 
-    # Create proxy
-    echo $(((100/12)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
-    WORKERPROXY="dorel-io--${PROJECTNAME}--proxy-${RANDOMUID}"
-    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" >> /var/log/dorel/debug.log 2>&1
-
-    # Create forwarding rules
-    echo $(((100/12)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
-    WORKERFORWARDRULES="dorel-io--${PROJECTNAME}--forwardrule-${RANDOMUID}"
-    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "80" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
-
     # Wait for command to finish
     echo $(((100/12)*10)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Wait for creation of Linux box" 10 70 0
     sleep 5 # Need to wait until exec is done.
@@ -346,7 +491,6 @@ then
     SQLID=$(cat ${PROJECTNAME}.json | jq -r '.db.id')
     SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
     GenerateSqlPassword
-
     echo $(((100/12)*11)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setting up Docker, Nginx and Let's Encrypt on the worker (might take some time)" 10 70 0
     gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${WORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" --project \"${PROJECTID}\" && rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
