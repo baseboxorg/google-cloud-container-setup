@@ -14,6 +14,55 @@ CHOICE_HEIGHT=16
 BACKTITLE="Dorel.io SETUP"
 TITLE="Dorel.io SETUP"
 
+# Get 
+function getConfig {
+
+    PROJECTID=$(nodejs <<EOF 
+        var fs = require("fs");
+        try {
+            var config = fs.readFileSync("/root/.config/gcloud/configurations/config_default", 'utf8');
+            var match = /project = (.*)/.exec(config);
+            console.log(match[1]);
+        }
+        catch (e) {
+            console.log(false);
+        }
+EOF
+)
+
+    PROJECTLOCATION=$(nodejs <<EOF
+        var fs = require("fs");
+        try {
+            var config = fs.readFileSync("/root/.config/gcloud/configurations/config_default", 'utf8');
+            var match = /zone = (.*)/.exec(config);
+            console.log(match[1]);
+        }
+        catch (e) {
+            console.log(false);
+        }
+EOF
+)
+
+    PROJECTZONE=$(nodejs <<EOF
+        var fs = require("fs");
+        try {
+            var config = fs.readFileSync("/root/.config/gcloud/configurations/config_default", 'utf8');
+            var match = /zone = (.*)/.exec(config);
+            console.log(match[1]);
+        }
+        catch (e) {
+            console.log(false);
+        }
+EOF
+)
+
+    # If there is no config file, load gcloud init
+    if [ $PROJECTID = "false" ]; then
+        gcloud init
+        getConfig
+    fi
+}
+
 # function to create Passwords
 function GenerateSqlPassword {
     # Get first time
@@ -43,8 +92,8 @@ function GetWordpressData {
     exec 3>&1
     # Store data to $VALUES variable
     VALUES=$(dialog --output-separator "," \
-            --backtitle "Linux User Managment" \
-            --title "Useradd" \
+            --backtitle "$TITLE" \
+            --title "Setup Route 53 keys" \
             --form "Create a new user" \
         15 50 0 \
                 "Access Url:"    1 1 "$WEBSITEACCESSPOINT" 1 16 40 0 \
@@ -238,7 +287,7 @@ nodejs <<EOF
                                     } else {
                                         setTimeout(function(){
                                             certbotCommand.stdin.write("next\n");
-                                        }, 60000); // some time to process
+                                        }, 45000); // some time to process
                                     }
                                     });
                                 }
@@ -260,33 +309,36 @@ EOF
 }
 
 ###
-# INIT
+# INIT, RUN THE SCRIPT
 ###
-
-# Setup the shell
 set -e
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+# Setup the log file
+sudo mkdir -p /var/log/dorel
+sudo touch /var/log/dorel/debug.log
+sudo chmod 777 /var/log/dorel/debug.log
+# Setup the shell
 clear
 echo "Setting up Dorel Juvenile Google Cloud setup by @bobvanluijt..."
 cd ~
 mkdir -p ~/.cloudshell
 touch ~/.cloudshell/no-apt-get-warning
-sudo apt-get -qq -y update
-sudo apt-get -qq -y install dialog npm jq letsencrypt python-pip
-npm install aws-sdk
-sudo pip install --upgrade pip -q
-sudo pip install certbot -q
-sudo pip install certbot-external-auth -q
-
-# Setup the log file
-sudo mkdir -p /var/log/dorel
-sudo touch /var/log/dorel/debug.log
-sudo chmod 777 /var/log/dorel/debug.log
+export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)" >> /var/log/dorel/debug.log 2>&1
+echo "deb https://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list >> /var/log/dorel/debug.log 2>&1
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg -s | sudo apt-key add - >> /var/log/dorel/debug.log 2>&1
+sudo apt-get update -qq -y >> /var/log/dorel/debug.log 2>&1
+sudo apt-get install google-cloud-sdk -qq -y >> /var/log/dorel/debug.log 2>&1
+sudo apt-get -qq -y install dialog npm jq letsencrypt python-pip >> /var/log/dorel/debug.log 2>&1
+npm install aws-sdk >> /var/log/dorel/debug.log 2>&1
+sudo pip install --upgrade pip -q >> /var/log/dorel/debug.log 2>&1
+sudo pip install certbot -q >> /var/log/dorel/debug.log 2>&1
+sudo pip install certbot-external-auth -q >> /var/log/dorel/debug.log 2>&1
 
 # Ask project ID
-exec 3>&1;
-PROJECTID=$(dialog --inputbox "What is the Google Project Id?" 0 0 2>&1 1>&3);
-exitcode=$?;
-exec 3>&-;
+getConfig
 
 # Ask for Git Branch
 MENU="What Git Branch do you want to use?"
@@ -318,7 +370,8 @@ OPTIONS=(1 "New Wordpress installation"
          3 "Delete Wordpress installation"
          4 "Create new Docker worker within a sub-project"
          5 "Create a new Docker project"
-         6 "Setup Route 53 credentials")
+         6 "Setup Route 53 credentials"
+         7 "Change global Google Cloud settings")
 
 CHOICE=$(dialog --clear \
                 --backtitle "$BACKTITLE" \
@@ -347,6 +400,9 @@ case $CHOICE in
             ;;
         6)
             TASK=$(echo route53_setup)
+            ;;
+        7)
+            TASK=$(echo change_project)
             ;;
 esac
 
@@ -383,114 +439,161 @@ then
     #done < <( gcloud compute instance-groups list )
     #MACHINECHOICE=$(dialog --title "List file of directory /home" --menu "Select your machine" 24 80 17 "${MACHINESELECTLIST[@]}" 3>&2 2>&1 1>&3)
     
-    # THIS NEEDS TO BE AUTOMATED
+    # THIS NEEDS TO BE AUTOMATED AND NEEDS TO BE AN ACTUAL MACHINE, NOT A MACHINE GROUP
     MACHINECHOICE=$(echo "dorel-io--economic-fearful--docker-worker-zhll63-jk6y")
+    MACHINECHOICEGROUP=$(echo "dorel-io--economic-fearful--docker-worker-zhll63")
 
     # Generate the Docker Wordpress container
     GenerateUid
-    echo $(((100/7)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
-    # gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${MACHINECHOICE}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/16)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
+    # gcloud --quiet compute --project "${PROJECTID}" ssh --zone "${PROJECTLOCATION}" "${MACHINECHOICE}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Generate the Docker Redis container
-    echo $(((100/7)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
+    echo $(((100/16)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
 
     # Generate the Docker PHP FPM container
-    echo $(((100/7)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
+    echo $(((100/16)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
 
-    # Set proxy information
-    WORKERPROXY=$(nodejs <<EOF
-        var fs    = require("fs")
-        var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
-        obj.workers.forEach(function(val, key){
-            if(val.id === "${MACHINECHOICE}"){
-                console.log(val.loadbalancer.proxy);
-            }
-        })
-EOF
-)
-    WORKERFORWARDRULES=$(nodejs <<EOF
-        var fs    = require("fs")
-        var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
-        obj.workers.forEach(function(val, key){
-            if(val.id === "${MACHINECHOICE}"){
-                console.log(val.loadbalancer.forwardrules);
-            }
-        })
-EOF
-)
-    WORKERURLMAP=$(nodejs <<EOF
-        var fs    = require("fs")
-        var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
-        obj.workers.forEach(function(val, key){
-            if(val.id === "${MACHINECHOICE}"){
-                console.log(val.loadbalancer.urlmap);
-            }
-        })
-EOF
-)
+
+
+
+
+
+
+
+
+
+    ##
+    # Add the SPA certificate and loadbalancer
+    ##
 
     # CERT I: Create certs for top domain
-    echo $(((100/7)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create SPA certs" 10 70 0
+    echo $(((100/16)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
+    GenerateUid
     CERTDOMAIN=$(echo ${WEBSITEACCESSPOINT})
     CERTNAME=$(echo ${CERTDOMAIN//./-})
     CERTEMAIL=$(echo "IO@dorel.eu")
+    LOADBALANCERTYPE=$(echo "SPA")
+    LOADBALANCERPREFIX=$(echo "dorel-io--${CERTNAME}")
+    LOADBALANCERID=$(echo "-spa-${RANDOMUID}")
     GetAndSetCerts
 
     # CERT I: Add certs to loadbalancer
-    gcloud beta compute ssl-certificates create "${CERTNAME}" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem"
+    echo $(((100/16)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer" 10 70 0
+    gcloud beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT I: Create https check
+    echo $(((100/12)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" https-health-checks create "${LOADBALANCERPREFIX}-https-health-checks" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT I: Create backend service for loadbalancer
+    echo $(((100/12)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" backend-services create "${LOADBALANCERPREFIX}-backend-services" --protocol HTTPS --https-health-checks "${LOADBALANCERPREFIX}-https-health-checks" --port-name "https"  >> /var/log/dorel/debug.log 2>&1
+
+    # CERT I: create the backend service
+    echo $(((100/12)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" backend-services add-backend "${LOADBALANCERPREFIX}-backend-services" --instance-group "${MACHINECHOICEGROUP}" --max-utilization "0.98" --instance-group-zone "${PROJECTLOCATION}" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT I: Create url map
+    echo $(((100/12)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" url-maps create "${LOADBALANCERPREFIX}-url-maps" --default-service "${LOADBALANCERPREFIX}-backend-services" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT I: Add paths to URL map
+    echo $(((100/12)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add urls to URL map for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud compute url-maps add-path-matcher "${LOADBALANCERPREFIX}-url-maps" --path-matcher-name "${LOADBALANCERPREFIX}-matcher-name" --default-service "${LOADBALANCERPREFIX}-backend-services" --path-rules "/*" --new-hosts "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create proxy to loadbalancer
-    echo $(((100/12)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" --ssl-certificate "${CERTNAME}" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/16)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" target-https-proxies create "${LOADBALANCERPREFIX}-target-https-proxies" --url-map "${LOADBALANCERPREFIX}-url-maps" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create forwarding rules to loadbalancer
-    echo $(((100/12)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "443" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/16)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${LOADBALANCERPREFIX}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${LOADBALANCERPREFIX}-target-https-proxies" >> /var/log/dorel/debug.log 2>&1
+ 
+    # CERT I: enable CDN
+    echo $(((100/12)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud beta --quiet compute backend-services update "${LOADBALANCERPREFIX}-backend-services" --enable-cdn >> /var/log/dorel/debug.log 2>&1
+
+    # Add worker name to JSON config
+    nodejs <<EOF
+        var fs    = require("fs")
+        var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
+        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-target-https-proxies, "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-backend-services", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
+        fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
+EOF
+
+    ##
+    # Add the Wordpress certificate and loadbalancer
+    # NOTE: This will get added to the Exsisting URL map
+    ##
 
     # CERT II: Create certs for top domain
-    echo $(((100/7)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create SPA certs" 10 70 0
+    echo $(((100/16)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
+    GenerateUid
+    MAINSERVICE=$(echo "${LOADBALANCERPREFIX}-url-maps")
     CERTDOMAIN=$(echo wrps.api.${WEBSITEACCESSPOINT})
     CERTNAME=$(echo ${CERTDOMAIN//./-})
     CERTEMAIL=$(echo "IO@dorel.eu")
+    LOADBALANCERTYPE=$(echo "WRPS")
+    LOADBALANCERPREFIX=$(echo "dorel-io--${CERTNAME}")
+    LOADBALANCERID=$(echo "-wrps-${RANDOMUID}")
     GetAndSetCerts
 
     # CERT II: Add certs to loadbalancer
-    gcloud beta compute ssl-certificates create "${CERTNAME}" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem"
+    echo $(((100/16)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer" 10 70 0
+    gcloud beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT II: Create https check
+    echo $(((100/12)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" https-health-checks create "${LOADBALANCERPREFIX}-https-health-checks" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT II: Create backend service for loadbalancer
+    echo $(((100/12)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" backend-services create "${LOADBALANCERPREFIX}-backend-services" --protocol HTTPS --https-health-checks "${LOADBALANCERPREFIX}-https-health-checks" --port-name "https" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT II: create the backend service
+    echo $(((100/12)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" backend-services add-backend "${LOADBALANCERPREFIX}-backend-services" --instance-group "${MACHINECHOICEGROUP}" --max-utilization "98" --instance-group-zone "${PROJECTLOCATION}" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT II: Add paths to URL map
+    echo $(((100/12)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add urls to URL map for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud compute url-maps add-path-matcher "${MAINSERVICE}" --path-matcher-name "${LOADBALANCERPREFIX}-matcher-name" --default-service "${LOADBALANCERPREFIX}-backend-services" --path-rules "/*" --new-hosts "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Create proxy to loadbalancer
-    echo $(((100/12)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
-
-    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" --ssl-certificate "${CERTNAME}" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/16)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" target-https-proxies create "${LOADBALANCERPREFIX}-target-https-proxies" --url-map "${MAINSERVICE}" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Create forwarding rules to loadbalancer
-    echo $(((100/12)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "443" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/16)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${LOADBALANCERPREFIX}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${LOADBALANCERPREFIX}-target-https-proxies" >> /var/log/dorel/debug.log 2>&1
+ 
+    # CERT II: enable CDN
+    echo $(((100/12)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud beta --quiet compute backend-services update "${LOADBALANCERPREFIX}-backend-services" --enable-cdn >> /var/log/dorel/debug.log 2>&1
 
-    # CERT III: Create certs for top domain
-    echo $(((100/7)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create SPA certs" 10 70 0
-    CERTDOMAIN=$(echo mage.api.${WEBSITEACCESSPOINT})
-    CERTNAME=$(echo ${CERTDOMAIN//./-})
-    CERTEMAIL=$(echo "IO@dorel.eu")
-    GetAndSetCerts
+    # Add worker name to JSON config
+    nodejs <<EOF
+        var fs    = require("fs")
+        var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
+        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-target-https-proxies, "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-backend-services", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
+        fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
+EOF
 
-    # CERT III: Add certs to loadbalancer
-    gcloud beta compute ssl-certificates create "${CERTNAME}" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem"
+    gsutil cp ~/${PROJECTNAME}.json gs://dorel-io--config-bucket/${PROJECTNAME}.json
+    rm ~/${PROJECTNAME}.json
 
-    # CERT III: Create proxy to loadbalancer
-    echo $(((100/12)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" target-http-proxies create "${WORKERPROXY}" --url-map "${WORKERURLMAP}" --ssl-certificate "${CERTNAME}" >> /var/log/dorel/debug.log 2>&1
 
-    # CERT III: Create forwarding rules to loadbalancer
-    echo $(((100/12)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" forwarding-rules create "${WORKERFORWARDRULES}" --global --ip-protocol "TCP" --port-range "443" --target-http-proxy "${WORKERPROXY}" >> /var/log/dorel/debug.log 2>&1
+
+
+
+
+
+
+
+
 
     # Show success message
     dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new Wordpress instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${ADMINEMAIL} and password: ${RANDOMUID}" 0 0
-
-    ##
-    # Add container routing https://cloud.google.com/compute/docs/load-balancing/http/content-based-example
-    # Also add SSL certs to https
-    ##
 
 fi
 
@@ -508,53 +611,33 @@ then
     DOCKERWORKERID="dorel-io--${PROJECTNAME}--docker-worker-${RANDOMUID}"
 
     # Create the worker
-    echo $(((100/12)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create a worker" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" instance-groups managed create "${DOCKERWORKERID}" --zone "europe-west1-c" --base-instance-name "${DOCKERWORKERID}" --template "dorel-io--${PROJECTNAME}--docker-worker-template" --size "1" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/5)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create a worker" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" instance-groups managed create "${DOCKERWORKERID}" --zone "${PROJECTLOCATION}" --base-instance-name "${DOCKERWORKERID}" --template "dorel-io--${PROJECTNAME}--docker-worker-template" --size "1" >> /var/log/dorel/debug.log 2>&1
 
     # Download the config file
-    echo $(((100/12)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Load config" 10 70 0
+    echo $(((100/5)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Load config" 10 70 0
     gsutil cp gs://dorel-io--config-bucket/${PROJECTNAME}.json ~/${PROJECTNAME}.json
 
-    # Create Heatlth Check for loadbalancer
-    echo $(((100/12)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" http-health-checks create http-basic-check-${RANDOMUID} >> /var/log/dorel/debug.log 2>&1
-
-    # Create backend service for loadbalancer
-    echo $(((100/12)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" backend-services create "${DOCKERWORKERID}" --protocol HTTP --http-health-checks http-basic-check-${RANDOMUID} >> /var/log/dorel/debug.log 2>&1
- 
-    # enable CDN
-    echo $(((100/12)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN" 10 70 0
-    gcloud beta --quiet compute backend-services update "${DOCKERWORKERID}" --enable-cdn --global
-
-    # create the backend service
-    echo $(((100/12)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" backend-services add-backend "${DOCKERWORKERID}" --instance-group "${DOCKERWORKERID}" --instance-group-zone "europe-west1-c"
-
-    # Create url map
-    echo $(((100/12)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP" 10 70 0
-    WORKERURLMAP="dorel-io--${PROJECTNAME}--urlmap-${RANDOMUID}"
-    gcloud --quiet compute --project "${PROJECTID}" url-maps create "${WORKERURLMAP}" --default-service "${DOCKERWORKERID}" >> /var/log/dorel/debug.log 2>&1
-
     # Wait for command to finish
-    echo $(((100/12)*10)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Wait for creation of Linux box" 10 70 0
+    echo $(((100/5)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Wait for creation of Linux box" 10 70 0
     sleep 5 # Need to wait until exec is done.
 
     # Get the name of the worker
-    WORKERID=$(gcloud compute instance-groups managed list-instances "${DOCKERWORKERID}" --zone "europe-west1-c" | grep -P -o "(dorel-io--[^\s]+)")
+    WORKERID=$(gcloud compute instance-groups managed list-instances "${DOCKERWORKERID}" --zone "${PROJECTLOCATION}" | grep -P -o "(dorel-io--[^\s]+)")
 
     # Setup the Docker worker
     SQLID=$(cat ${PROJECTNAME}.json | jq -r '.db.id')
     SQLIP=$(gcloud sql --project="${PROJECTID}" --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
     GenerateSqlPassword
-    echo $(((100/12)*11)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setting up Docker, Nginx and Let's Encrypt on the worker (might take some time)" 10 70 0
-    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "europe-west1-c" "${WORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" --project \"${PROJECTID}\" && rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/5)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setting up Docker, Nginx and Let's Encrypt on the worker (might take some time)" 10 70 0
+    gcloud --quiet compute --project "${PROJECTID}" ssh --zone "${PROJECTLOCATION}" "${WORKERID}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" --project \"${PROJECTID}\" && rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Add worker name to JSON config
     nodejs <<EOF
         var fs    = require("fs")
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
-        obj.workers.push({ "id": "${DOCKERWORKERID}", "loadbalancer": { "backendservice": "${DOCKERWORKERID}", "urlmap": "${WORKERURLMAP}", "proxy": "${WORKERPROXY}", "forwardrules": "${WORKERFORWARDRULES}", "workerIds": ["${WORKERID}"]  }});
+        obj.workers = obj.workers || {};
+        obj.workers["${DOCKERWORKERID}"].push({ "id": "${DOCKERWORKERID}", "workerIds": ["${WORKERID}"] });
         fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
 EOF
     gsutil cp ~/${PROJECTNAME}.json gs://dorel-io--config-bucket/${PROJECTNAME}.json
@@ -610,11 +693,11 @@ then
   GenerateUid
   SQLID="dorel-io--${PROJECTNAME}--database-${RANDOMUID}"
   SQLFAILOVERID="dorel-io--${PROJECTNAME}--failover-database-${RANDOMUID}"
-  gcloud --quiet beta sql --project "${PROJECTID}" instances create "${SQLID}" --tier "db-n1-highmem-4" --activation-policy "ALWAYS" --backup-start-time "01:23" --database-version "MYSQL_5_7" --enable-bin-log --failover-replica-name "${SQLFAILOVERID}" --gce-zone "europe-west1-c" --maintenance-release-channel "PRODUCTION" --maintenance-window-day "SUN" --maintenance-window-hour "01" --region "europe-west1" --replica-type "FAILOVER" --replication ASYNCHRONOUS --require-ssl --storage-auto-increase --storage-size "50GB" --storage-type "SSD" >> /var/log/dorel/debug.log 2>&1
+  gcloud --quiet beta sql --project "${PROJECTID}" instances create "${SQLID}" --tier "db-n1-highmem-4" --activation-policy "ALWAYS" --backup-start-time "01:23" --database-version "MYSQL_5_7" --enable-bin-log --failover-replica-name "${SQLFAILOVERID}" --gce-zone "${PROJECTLOCATION}" --maintenance-release-channel "PRODUCTION" --maintenance-window-day "SUN" --maintenance-window-hour "01" --region "${PROJECTZONE}" --replica-type "FAILOVER" --replication ASYNCHRONOUS --require-ssl --storage-auto-increase --storage-size "50GB" --storage-type "SSD" >> /var/log/dorel/debug.log 2>&1
 
   # Create datastore bucket
   echo $(((100/9)*5)) | dialog --gauge "Create storage bucket" 10 70 0
-  gsutil mb -p "${PROJECTID}" -c "REGIONAL" -l "europe-west1" "gs://dorel-io--${PROJECTNAME}--content-bucket" >> /var/log/dorel/debug.log 2>&1
+  gsutil mb -p "${PROJECTID}" -c "REGIONAL" -l "${PROJECTZONE}" "gs://dorel-io--${PROJECTNAME}--content-bucket" >> /var/log/dorel/debug.log 2>&1
 
   # Set password and collect IP
   GenerateSqlPassword
@@ -625,7 +708,7 @@ then
   # Create the JSON object and Store to bucket
   echo $(((100/9)*9)) | dialog --gauge "Store config to config bucket in file: ${PROJECTNAME}.json" 10 70 0
   PROJECTOBJECT="{ \"projectName\": \"dorel-io--${PROJECTNAME}\", \"projectNameShort\": \"${PROJECTNAME}\", \"db\": { \"id\": \"${SQLID}\" }, \"workers\": [] }"
-  gsutil --quiet mb -p "${PROJECTID}" -c "NEARLINE" -l "europe-west1" "gs://dorel-io--config-bucket" || true
+  gsutil --quiet mb -p "${PROJECTID}" -c "NEARLINE" -l "${PROJECTZONE}" "gs://dorel-io--config-bucket" || true
   touch ~/${PROJECTNAME}.json
   echo ${PROJECTOBJECT} > ~/${PROJECTNAME}.json
   gsutil --quiet cp ~/${PROJECTNAME}.json "gs://dorel-io--config-bucket"
@@ -638,6 +721,13 @@ fi
 if [[ "$TASK" == "route53_setup" ]]
 then
     SetRoute53Keys
+fi
+
+if [[ "$TASK" == "change_project" ]]
+then
+    gcloud init
+    CURRENTSCRIPT=`basename "$0"`
+    bash $CURRENTSCRIPT
 fi
 
 # Clear the screen when done
