@@ -28,7 +28,7 @@ _Note: You will have two types of projects: I. The Google Cloud project and (II)
 6. Download the core bash file `$ wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/dorelcloudtool.sh`
 7. Set permissions `$ chmod +x ./dorelcloudtool.sh`
 8. Run `$ ./dorelcloudtool.sh`
-9. When running for the first time on a new machine, make sure to run the Route 53 Authentication command
+9. When running for the first time on a new machine, make sure to run the Route 53 Authentication command!
 
 _Note I: to use the tool from another branche change 'master' into -for example- 'develop' in the download url_
 
