@@ -18,6 +18,8 @@ All information about this setup is stored in the config storage bucket.
 
 _Note: You will have two types of projects: I. The Google Cloud project and (II) the sub-project id. You can create multiple sub-projects inside a Google Project._
 
+_Note: This script is a tool to chain commands, not a cloud application, you need to always validate its output_
+
 ## Getting started
 
 1. Go to the Google Cloud console.
@@ -28,7 +30,8 @@ _Note: You will have two types of projects: I. The Google Cloud project and (II)
 6. Download the core bash file `$ wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/dorelcloudtool.sh`
 7. Set permissions `$ chmod +x ./dorelcloudtool.sh`
 8. Run `$ ./dorelcloudtool.sh`
-9. When running for the first time on a new machine, make sure to run the Route 53 Authentication command!
+9. First `gcloud` will run, make sure to login with your Google Cloud credentials
+10. When running for the first time on a new machine, make sure to run the Route 53 Authentication command!
 
 _Note I: to use the tool from another branche change 'master' into -for example- 'develop' in the download url_
 
@@ -41,6 +44,7 @@ _Note II: All debug info will be stored in: `/var/log/dorel/debug.log`_
 3. Select what you want to do.
 
 After a process is done, the software will terminate.
+
 
 ## Creating a new Docker project (Option 5)
 
