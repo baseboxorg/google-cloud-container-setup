@@ -34,7 +34,7 @@ EOF
         var fs = require("fs");
         try {
             var config = fs.readFileSync("/root/.config/gcloud/configurations/config_default", 'utf8');
-            var match = /zone = (.*)/.exec(config);
+            var match = /region = (.*)/.exec(config);
             console.log(match[1]);
         }
         catch (e) {
@@ -326,11 +326,11 @@ echo "Setting up Dorel Juvenile Google Cloud setup by @bobvanluijt..."
 cd ~
 mkdir -p ~/.cloudshell
 touch ~/.cloudshell/no-apt-get-warning
+sudo apt-get install lsb_release -qq -y >> /var/log/dorel/debug.log 2>&1
 export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)" >> /var/log/dorel/debug.log 2>&1
 echo "deb https://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list >> /var/log/dorel/debug.log 2>&1
 curl https://packages.cloud.google.com/apt/doc/apt-key.gpg -s | sudo apt-key add - >> /var/log/dorel/debug.log 2>&1
 sudo apt-get update -qq -y >> /var/log/dorel/debug.log 2>&1
-sudo apt-get install google-cloud-sdk -qq -y >> /var/log/dorel/debug.log 2>&1
 sudo apt-get -qq -y install dialog npm jq letsencrypt python-pip >> /var/log/dorel/debug.log 2>&1
 npm install aws-sdk >> /var/log/dorel/debug.log 2>&1
 sudo pip install --upgrade pip -q >> /var/log/dorel/debug.log 2>&1
@@ -454,14 +454,10 @@ then
     # Generate the Docker PHP FPM container
     echo $(((100/16)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
 
-
-
-
-
-
-
-
-
+    ##
+    # Send hosted zone message
+    ##
+    dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "Make sure a hosted zone for the domain is available in Route 53. A hosted zone name should be formatted as: [domain.toplevel.] Like [testsite.com.]" 0 0
 
     ##
     # Add the SPA certificate and loadbalancer
@@ -581,16 +577,6 @@ EOF
 
     gsutil cp ~/${PROJECTNAME}.json gs://dorel-io--config-bucket/${PROJECTNAME}.json
     rm ~/${PROJECTNAME}.json
-
-
-
-
-
-
-
-
-
-
 
     # Show success message
     dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new Wordpress instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${ADMINEMAIL} and password: ${RANDOMUID}" 0 0
