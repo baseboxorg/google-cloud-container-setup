@@ -162,6 +162,9 @@ EOF
 # Get the certdomain dir
 CERTDOMAINDIR=$(find /etc/letsencrypt/live -maxdepth 1 -type d -name "*${CERTDOMAIN}*" -printf '%f' -quit)
 
+# Get the old cert domain dir
+CERTDOMAINDIROLD=$(cat ~/.certPath.conf)
+
 # Create random string for unique id
 RANDOMSTRING=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
 
@@ -180,11 +183,15 @@ then
     gcloud -q beta compute ssl-certificates delete "${LATESTCERTNAME}"
 fi
 
-# Replace the url in the nginx settings
-sed -i -e 's/[[CERTDOMAIN]]/${CERTDOMAIN}/g' /etc/nginx/sites-enabled/default
+# Replace the certparth
+sed -i -e "s/\/etc\/letsencrypt\/live\/${CERTDOMAINDIROLD}/${CERTDOMAINDIR}" /etc/nginx/sites-enabled/default
 
-# Save to cert file
+# Replace the url in the nginx settings
+sed -i -e "s/[[CERTDOMAIN]]/${CERTDOMAIN}/g" /etc/nginx/sites-enabled/default
+
+# Save to cert file and url file
 echo "${CERTDOMAINSTRIPE}-ssl-certificates-${RANDOMSTRING}" > ~/.certName.conf
+echo "/etc/letsencrypt/live/${CERTDOMAINDIR}" > ~/.certPath.conf
 
 # Reload nginx
 service nginx reload
