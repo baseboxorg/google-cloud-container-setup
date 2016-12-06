@@ -108,6 +108,3 @@ apt-get install nginx -qq -y
 
 # Make main dir to connect Wordpress wp-content directories to
 mkdir -m 777 -p /var/wordpress-content
-
-# And... done
-exit
