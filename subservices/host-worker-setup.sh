@@ -111,3 +111,6 @@ apt-get install letsencrypt -qq -y
 
 # Make main dir to connect Wordpress wp-content directories to
 mkdir -m 777 -p /var/wordpress-content
+
+# And... done
+exit
