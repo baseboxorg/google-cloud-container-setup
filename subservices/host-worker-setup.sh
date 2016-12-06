@@ -30,6 +30,10 @@ case $key in
     PROJECTID="$2"
     shift # past argument
     ;;
+    -b|--bucketName)
+    BUCKETNAME="$2"
+    shift # past argument
+    ;;
     --default)
     DEFAULT=YES
     ;;
@@ -112,3 +116,16 @@ apt-get install nginx -qq -y
 
 # Make main dir to connect Wordpress wp-content directories to
 mkdir -m 777 -p /var/wordpress-content
+mkdir -m 777 -p /var/wordpress-content/nginx
+mkdir -m 777 -p /var/wordpress-content/docker
+
+# Connect root to docker dir
+gcsfuse --implicit-dirs ${BUCKETNAME} /var/wordpress-content/docker
+
+# Connect www-data to nginx dir
+su -s /bin/bash www-data
+gcsfuse --implicit-dirs ${BUCKETNAME} /var/wordpress-content/nginx
+exit
+
+# Restart nginx
+service nginx restart
