@@ -339,7 +339,7 @@ npm install aws-sdk >> /var/log/dorel/debug.log 2>&1
 pip install --upgrade pip -q >> /var/log/dorel/debug.log 2>&1
 pip install certbot -q >> /var/log/dorel/debug.log 2>&1
 pip install certbot-external-auth -q >> /var/log/dorel/debug.log 2>&1
-gcloud components update >> /var/log/dorel/debug.log 2>&1
+gcloud components update
 
 # Ask project ID
 getConfig
