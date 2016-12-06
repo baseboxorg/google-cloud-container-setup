@@ -119,6 +119,13 @@ mkdir -m 777 -p /var/wordpress-content
 mkdir -m 777 -p /var/wordpress-content/nginx
 mkdir -m 777 -p /var/wordpress-content/docker
 
+# Install gsfuse
+export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
+echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+apt-get update
+apt-get install gcsfuse
+
 # Connect root to docker dir
 gcsfuse --implicit-dirs ${BUCKETNAME} /var/wordpress-content/docker
 
