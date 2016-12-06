@@ -197,4 +197,4 @@ echo "/etc/letsencrypt/live/${CERTDOMAINDIR}" > ~/.certPath.conf
 service nginx reload
 
 # remove cert files
-rm -r /etc/letsencrypt/live/${CERTDOMAINDIR}
+# rm -r /etc/letsencrypt/live/${CERTDOMAINDIR}
