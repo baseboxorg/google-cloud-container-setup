@@ -622,7 +622,7 @@ then
     echo $(((100/5)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setting up Docker, Nginx and Let's Encrypt on the worker (might take some time)" 10 70 0
     
     # This script will create the ssh key files needed to login
-    gcloud compute ssh dorel-io--limping-verdant--docker-worker-86ee01-n8db --command "ls"
+    gcloud compute ssh ${WORKERID} --command "ls"
     
     # Exec the setup
     ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${WORKERID} <<EOF
