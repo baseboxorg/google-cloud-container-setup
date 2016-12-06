@@ -106,9 +106,6 @@ service docker start
 # Install NGINX (disabled for now, might be removed during checkup)
 apt-get install nginx -qq -y
 
-# Install SSL (disabled for now, might be removed during checkup)
-apt-get install letsencrypt -qq -y
-
 # Make main dir to connect Wordpress wp-content directories to
 mkdir -m 777 -p /var/wordpress-content
 
