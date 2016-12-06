@@ -117,8 +117,6 @@ apt-get install nginx -qq -y
 
 # Make main dir to connect Wordpress wp-content directories to
 mkdir -m 777 -p /var/wordpress-content
-mkdir -m 777 -p /var/wordpress-content/nginx
-mkdir -m 777 -p /var/wordpress-content/docker
 
 # Install gsfuse
 export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
@@ -128,12 +126,7 @@ apt-get update
 apt-get install gcsfuse
 
 # Connect root to docker dir
-gcsfuse --implicit-dirs ${BUCKETNAME} /var/wordpress-content/docker
-
-# Connect www-data to nginx dir
-su -s /bin/bash www-data
-gcsfuse --implicit-dirs ${BUCKETNAME} /var/wordpress-content/nginx
-exit
+gcsfuse -o allow_other --implicit-dirs dorel-io--${BUCKETNAME}--content-bucket /var/wordpress-content
 
 # Restart nginx
 service nginx restart
