@@ -126,7 +126,7 @@ apt-get update
 apt-get install gcsfuse
 
 # Connect root to docker dir
-gcsfuse -o allow_other --implicit-dirs dorel-io--${BUCKETNAME}--content-bucket /var/wordpress-content
+gcsfuse -o allow_other --file-mode 775 --dir-mode 775 --implicit-dirs dorel-io--${BUCKETNAME}--content-bucket /var/wordpress-content
 
 # Restart nginx
 service nginx restart
