@@ -625,7 +625,7 @@ then
     gcloud compute ssh ${WORKERID} --command "ls"
 
     # Exec the setup
-    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${WORKERID} "sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && sudo chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" -P \"${PROJECTID}\" && sudo rm ~/host-worker-setup.sh"
+    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${WORKERID} "sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && sudo chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" -P \"${PROJECTID}\" -b \"${PROJECTNAME}\" && sudo rm ~/host-worker-setup.sh"
 
     # Add worker name to JSON config
     nodejs <<EOF
