@@ -623,21 +623,16 @@ then
     
     # This script will create the ssh key files needed to login
     gcloud compute ssh ${WORKERID} --command "ls"
-    
+
     # Exec the setup
-    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${WORKERID} <<EOF
-        sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh
-        sudo chmod +x ~/host-worker-setup.sh
-        sudo ~/host-worker-setup.sh --sqlip "${SQLIP}" --sqlpass "${PASSWORD1}" --project "${PROJECTID}"
-        sudo rm ~/host-worker-setup.sh
-EOF
+    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${WORKERID} "sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && sudo chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" -P \"${PROJECTID}\" && sudo rm ~/host-worker-setup.sh"
 
     # Add worker name to JSON config
     nodejs <<EOF
         var fs    = require("fs")
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
         obj.workers = obj.workers || {};
-        obj.workers["${DOCKERWORKERID}"] = obj.workers.["${DOCKERWORKERID}"] || {};
+        obj.workers["${DOCKERWORKERID}"] = obj.workers["${DOCKERWORKERID}"] || [];
         obj.workers["${DOCKERWORKERID}"].push({ "id": "${DOCKERWORKERID}", "workerIds": ["${WORKERID}"] });
         fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
 EOF
