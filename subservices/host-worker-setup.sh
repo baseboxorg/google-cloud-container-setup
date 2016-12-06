@@ -49,7 +49,7 @@ if [ -z ${PROJECTID} ];  then echo "-P or --project is unset | abort"; exit 1; f
 
 # Update and install dialog
 apt-get update -qq -y
-apt-get install dialog -qq -y
+apt-get install dialog unzip -qq -y
 
 # Install security updates
 apt-get unattended-upgrades -d -qq -y
