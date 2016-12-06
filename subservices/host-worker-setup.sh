@@ -50,6 +50,7 @@ done
 if [ -z ${DBHOST} ];     then echo "-i or --sqlip is unset | abort";   exit 1; fi
 if [ -z ${SQLPASS} ];    then echo "-p or --sqlpass is unset | abort"; exit 1; fi
 if [ -z ${PROJECTID} ];  then echo "-P or --project is unset | abort"; exit 1; fi
+if [ -z ${BUCKETNAME} ]; then echo "-b or --bucketname is unset | abort"; exit 1; fi
 
 # Update and install dialog
 apt-get update -qq -y
