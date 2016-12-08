@@ -171,4 +171,4 @@ echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 service nginx reload
 
 # Echo the IP
-echo "{ \"SPA\": { \"dockerId\": \"${container}\", \"IP\": \"${containerWp}\" }, \"WP\": { \"dockerId\": \"${containerWp}\", \"IP\": \"${ipWp}\" }, \"LOG\": \"/var/log/wordpress-gcloud/${ACCESSURL}.log\""
+echo "{ \"SPA\": { \"dockerId\": \"${container}\", \"IP\": \"${ip}\" }, \"WP\": { \"dockerId\": \"${containerWp}\", \"IP\": \"${ipWp}\" }, \"LOG\": \"/var/log/wordpress-gcloud/${ACCESSURL}.log\"}"
