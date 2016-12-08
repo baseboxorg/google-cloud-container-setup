@@ -6,7 +6,7 @@
 # Readme: https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud
 #
 #
-# ./container-setup.sh -w test0001.dorel.io -W test0001.dorel.io -t "test website" -e "bob@kub.design" -U "admin" -ap "qwerty" -br develop
+# ./container-setup.sh -w test0001.dorel.io -W test0001.dorel.io -t "test_website" -e "bob@kub.design" -U "admin" -ap "qwerty" -br develop
 #
 ###############
 
@@ -45,12 +45,6 @@ case $key in
     BRANCH="$2"
     shift # past argument
     ;;
-    --default)
-    DEFAULT=YES
-    ;;
-    *)
-            # unknown option
-    ;;
 esac
 shift # past argument or value
 done
@@ -69,8 +63,8 @@ if [ -z ${BRANCH} ];     then echo "-br or --branch is unset | abort";    exit 1
 ###
 # Create or select all DB related info
 ###
-DBINFO=$(mysql_config_editor print --login-path=local)
-DBHOST=${DBINFO#*host =}
+DBINFO=$(cat ~/.my.cnf)
+DBHOST=${DBINFO#*host = }
 DBNAME=$(echo ${ACCESSURL} | tr . _)
 DBUSER=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 DBPASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
@@ -123,7 +117,7 @@ mv ~/container-setup/google-cloud-container-setup-${BRANCH}/* ~/container-setup 
 ###
 
 # Build spa container
-docker build -t spa-gcloud -f ~/container-setup/subservices/Dorel-Dockerfiles/spa/Dockerfile --build-arg branch=${BRANCH} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+docker build --no-cache -t spa-gcloud -f ~/container-setup/subservices/Dorel-Dockerfiles/spa/Dockerfile --build-arg branch=${BRANCH} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Exec spa container
 container=$(docker run -d spa-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
@@ -132,6 +126,7 @@ container=$(docker run -d spa-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.
 ip=$(docker inspect "$container" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Add to acces url setup
+rm -f /etc/nginx/sites-enabled/${ACCESSURL}
 touch /etc/nginx/sites-enabled/${ACCESSURL}
 echo "server {" >> /etc/nginx/sites-enabled/${ACCESSURL}
 echo "    server_name ${ACCESSURL};" >> /etc/nginx/sites-enabled/${ACCESSURL}
@@ -144,42 +139,36 @@ echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 # Start the creation process WORDPRESS
 ###
 
-## Set ACCESSURL for Wordpress API
-#WPACCESSURL="wp.api.${ACCESSURL}"
-#
-## mkdir for wp-content
-#mkdir -m 777 -p /var/wordpress-content/${WPACCESSURL}
-#
-## Create mySQL instance with new users
-#mysql --login-path=local -e "create database ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${ACCESSURL}.log
-#
-## Build from the Dockerfile based on the env variables
-#docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} #--build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
-#
-## Build container, get the container ID and connect the dirs
-#container=$(docker run -v /var/wordpress-content/${ACCESSURL}:/var/www/WordPress/wp-content -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
-#
-## Copy the container wp-content data onto the volume
-#docker exec $container /bin/sh -c "cp -a /var/www/WordPress/wp-content_tmp/. /var/www/WordPress/wp-content/ && rm -R /var/www/WordPress/wp-content_tmp"
-#
-## Get the IP of the newly created container
-#ip=$(docker inspect "$container" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${ACCESSURL}.log
-#
-## Create nginx setup
-#touch /etc/nginx/sites-enabled/${ACCESSURL}
-#echo "server {" >> /etc/nginx/sites-enabled/${ACCESSURL}
-#echo "    server_name ${ACCESSURL};" >> /etc/nginx/sites-enabled/${ACCESSURL}
-#echo "    location / {" >> /etc/nginx/sites-enabled/${ACCESSURL}
-#echo "        proxy_pass http://$ip;" >> /etc/nginx/sites-enabled/${ACCESSURL}
-#echo "    }" >> /etc/nginx/sites-enabled/${ACCESSURL}
-#echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
+# Set ACCESSURL for Wordpress API
+WPACCESSURL="wp.api.${ACCESSURL}"
 
-##
-# Setup the certificates on the load balancer
-##
+# mkdir for wp-content
+mkdir -m 777 -p /var/wordpress-content/${WPACCESSURL}
+
+# Create mySQL instance with new users
+mysql -e "CREATE DATABASE IF NOT EXISTS ${DBNAME} ; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+
+# Build from the Dockerfile based on the env variables
+echo docker build --no-cache -f ~/container-setup/subservices/Dorel-Dockerfiles/wordpress-nginx/Dockerfile -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg branch=${BRANCH} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+
+# Build container, get the container ID and connect the dirs
+containerWp=$(docker run -v /var/wordpress-content/${WPACCESSURL}:/var/www/WordPress/wp-content -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+
+# Get the IP of the newly created container
+ipWp=$(docker inspect "$containerWp" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+
+# Create nginx setup
+rm -f /etc/nginx/sites-enabled/${WPACCESSURL}
+touch /etc/nginx/sites-enabled/${WPACCESSURL}
+echo "server {" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "    server_name ${ACCESSURL};" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "    location / {" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "        proxy_pass http://$ipWp;" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "    }" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 
 # Reload nginx (note NOT restart, we don't want to disturb existing users)
 service nginx reload
 
 # Echo the IP
-echo "done log saved to /var/log/wordpress-gcloud/${ACCESSURL}.log | success"
+echo "{ \"SPA\": { \"dockerId\": \"${container}\", \"IP\": \"${containerWp}\" }, \"WP\": { \"dockerId\": \"${containerWp}\", \"IP\": \"${ipWp}\" }, \"LOG\": \"/var/log/wordpress-gcloud/${ACCESSURL}.log\""
