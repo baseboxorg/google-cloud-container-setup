@@ -60,11 +60,11 @@ RUN mkdir -p /var/www && \
 # RUN wp core install --allow-root --path=/var/www/WordPress --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
 
 # Install super cache, first set chmod 777 and set back later
-RUN chmod 777 /var/www/WordPress/wp-config.php && \
-    chmod 777 /var/www/WordPress/wp-content
+#RUN chmod 777 /var/www/WordPress/wp-config.php && \
+#    chmod 777 /var/www/WordPress/wp-content
 
 # IMPORTANT: The wp-content dir is renamed so it can be remounted in the docker run with an external directory
-RUN mv /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
+#RUN mv /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
 
 # Set nginx config
 #RUN rm /etc/nginx/sites-enabled/default
