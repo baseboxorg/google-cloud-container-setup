@@ -85,6 +85,20 @@ function GenerateSqlPassword {
     fi
 }
 
+# Get the docker host
+function SetWorkerIdForContainer {
+    exec 3>&1;
+    WORKERIDCLOUDCONTAINER=$(dialog --inputbox "What is the name of the machine?" 0 0 dorel-io--${PROJECTNAME}--docker-worker- 2>&1 1>&3)
+    exec 3>&-;
+
+    gcloud compute instances describe "${WORKERIDCLOUDCONTAINER}" --zone europe-west1-c
+    if [ $? -eq 0 ]; then
+        echo Found
+    else
+        echo SetWorkerIdForContainer
+    fi
+}
+
 # Get Wordpress database
 function GetWordpressData {
     WEBSITEACCESSPOINT=""
@@ -427,36 +441,30 @@ then
     # Set the sub-project id
 	SetSubProjectId
 
+    # Set the worker id
+    SetWorkerIdForContainer
+
     # Get Wordpress data
     GetWordpressData
 
     # Download config json
     gsutil cp gs://dorel-io--config-bucket/${PROJECTNAME}.json ~/${PROJECTNAME}.json
 
-    # Select the machine
-    # AUTO SELECT MACHINE WITH LEAST LOAD
-    #clear
-    #MACHINESELECTLIST=()
-    #while read -r line; do
-    #    toutput=$(echo "$line" | grep -Po "(dorel-io--[^\s]+)")
-    #    MACHINESELECTLIST+=("$toutput" "x")
-    #done < <( gcloud compute instance-groups list )
-    #MACHINECHOICE=$(dialog --title "List file of directory /home" --menu "Select your machine" 24 80 17 "${MACHINESELECTLIST[@]}" 3>&2 2>&1 1>&3)
-    
     # THIS NEEDS TO BE AUTOMATED AND NEEDS TO BE AN ACTUAL MACHINE, NOT A MACHINE GROUP
-    MACHINECHOICE=$(echo "dorel-io--economic-fearful--docker-worker-zhll63-jk6y")
-    MACHINECHOICEGROUP=$(echo "dorel-io--economic-fearful--docker-worker-zhll63")
+    MACHINECHOICE=$(echo "${WORKERIDCLOUDCONTAINER}")
+    MACHINECHOICEGROUP=$(echo ${MACHINECHOICE::-5})
 
     # Generate the Docker Wordpress container
     GenerateUid
     echo $(((100/16)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
-    # gcloud --quiet compute ssh --zone "${PROJECTLOCATION}" "${MACHINECHOICE}" --command "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    CONTAINERINFO=$(ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website \"${WEBSITEACCESSPOINT}\" --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" -br "${GITBRANCH}" && rm ~/container-setup.sh")
+
+    echo "DONE"
+    echo ${CONTAINERINFO}
+    exit 1
 
     # Generate the Docker Redis container
     echo $(((100/16)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
-
-    # Generate the Docker PHP FPM container
-    echo $(((100/16)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker PHP FPM container" 10 70 0
 
     ##
     # Send hosted zone message
@@ -601,31 +609,38 @@ then
     DOCKERWORKERID="dorel-io--${PROJECTNAME}--docker-worker-${RANDOMUID}"
 
     # Create the worker
-    echo $(((100/5)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create a worker" 10 70 0
+    echo $(((100/6)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create a worker" 10 70 0
     gcloud --quiet compute instance-groups managed create "${DOCKERWORKERID}" --zone "${PROJECTZONE}" --base-instance-name "${DOCKERWORKERID}" --template "dorel-io--${PROJECTNAME}--docker-worker-template" --size "1" >> /var/log/dorel/debug.log 2>&1
 
     # Download the config file
-    echo $(((100/5)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Load config" 10 70 0
+    echo $(((100/6)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Load config" 10 70 0
     gsutil cp gs://dorel-io--config-bucket/${PROJECTNAME}.json ~/${PROJECTNAME}.json
 
     # Wait for command to finish
-    echo $(((100/5)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Wait for creation of Linux box" 10 70 0
-    sleep 48 # Need to wait until exec is done.
+    echo $(((100/6)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Wait for creation of Linux box" 10 70 0
+    sleep 60 # Need to wait until exec is done.
 
     # Get the name of the worker
     WORKERID=$(gcloud compute instance-groups managed list-instances "${DOCKERWORKERID}" --zone "${PROJECTZONE}" | grep -P -o "(dorel-io--[^\s]+)")
+    WORKERIP=$(gcloud compute instances describe ${WORKERID} --format json | jq -r '.networkInterfaces[0].accessConfigs[0].natIP')
 
     # Setup the Docker worker
+    echo $(((100/5)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Set SQL settings" 10 70 0
     SQLID=$(cat ${PROJECTNAME}.json | jq -r '.db.id')
     SQLIP=$(gcloud sql --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
     GenerateSqlPassword
-    echo $(((100/5)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setting up Docker, Nginx and Let's Encrypt on the worker (might take some time)" 10 70 0
+    echo $(((100/6)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setting up cloud IPs" 10 70 0
     
+    # Add access to the SQL instance
+    SQLADDIPS=$(gcloud sql instances describe ${SQLID} --format json  | jq -r '.settings.ipConfiguration.authorizedNetworks | join(",")')
+    gcloud sql instances patch ${SQLID} --authorized-networks=${SQLADDIPS},${WORKERIP} >> /var/log/dorel/debug.log 2>&1
+
     # This script will create the ssh key files needed to login
-    gcloud compute ssh ${WORKERID} --command "ls"
+    echo $(((100/6)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Building the Ubuntu installation (might take some time)" 10 70 0
+    gcloud compute ssh ${WORKERID} --command "ls" >> /var/log/dorel/debug.log 2>&1
 
     # Exec the setup
-    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${WORKERID} "sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && sudo chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" -P \"${PROJECTID}\" -b \"${PROJECTNAME}\" && sudo rm ~/host-worker-setup.sh"
+    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${WORKERID} "sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && sudo chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" -P \"${PROJECTID}\" -b \"${PROJECTNAME}\" && sudo rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Add worker name to JSON config
     nodejs <<EOF
@@ -653,19 +668,7 @@ then
   # Give a headsup message
   dialog --pause "During the process you will be asked to create a MYSQL root password and you will get the project information returned. Make sure to store the MYSQL root password and Swarm information in a secure place. It will be needed to setup workers in the future.\n\n\nOutput will be available in: /var/log/dorel/debug.log" 20 0 25
 
-  # Collect manager type
-    MENU="Select a worker type?"
-    OPTIONS=("n1-standard-1" "Standard 1 CPU machine type with 1 virtual CPU and 3.75 GB of memory."
-             "n1-standard-2" "Standard 2 CPU machine type with 2 virtual CPUs and 7.5 GB of memory."
-             "n1-standard-4" "Standard 4 CPU machine type with 4 virtual CPUs and 15 GB of memory.")
-
-    DOCKERMANAGERTYPE=$(dialog --clear \
-                    --backtitle "$BACKTITLE" \
-                    --title "$TITLE" \
-                    --menu "$MENU" \
-                    $HEIGHT 0 $CHOICE_HEIGHT \
-                    "${OPTIONS[@]}" \
-                    2>&1 >/dev/tty)
+  DOCKERMANAGERTYPE="n1-standard-4"
 
   # Generate project name
   wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/random-nouns.list -O ~/random-nouns.list
@@ -689,7 +692,7 @@ then
   GenerateUid
   SQLID="dorel-io--${PROJECTNAME}--database-${RANDOMUID}"
   SQLFAILOVERID="dorel-io--${PROJECTNAME}--failover-database-${RANDOMUID}"
-  gcloud --quiet beta sql instances create "${SQLID}" --tier "db-n1-highmem-4" --activation-policy "ALWAYS" --backup-start-time "01:23" --database-version "MYSQL_5_7" --enable-bin-log --failover-replica-name "${SQLFAILOVERID}" --gce-zone "${PROJECTZONE}" --maintenance-release-channel "PRODUCTION" --maintenance-window-day "SUN" --maintenance-window-hour "01" --region "${PROJECTLOCATION}" --replica-type "FAILOVER" --replication ASYNCHRONOUS --require-ssl --storage-auto-increase --storage-size "50GB" --storage-type "SSD" >> /var/log/dorel/debug.log 2>&1
+  gcloud --quiet beta sql instances create "${SQLID}" --tier "db-n1-highmem-4" --activation-policy "ALWAYS" --backup-start-time "01:23" --database-version "MYSQL_5_7" --enable-bin-log --failover-replica-name "${SQLFAILOVERID}" --gce-zone "${PROJECTZONE}" --maintenance-release-channel "PRODUCTION" --maintenance-window-day "SUN" --maintenance-window-hour "01" --region "${PROJECTLOCATION}" --replica-type "FAILOVER" --replication ASYNCHRONOUS --storage-auto-increase --storage-size "50GB" --storage-type "SSD" >> /var/log/dorel/debug.log 2>&1
 
   # Create datastore bucket
   echo $(((100/9)*5)) | dialog --gauge "Create storage bucket" 10 70 0

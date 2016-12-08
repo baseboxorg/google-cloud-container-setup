@@ -170,5 +170,5 @@ echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 # Reload nginx (note NOT restart, we don't want to disturb existing users)
 service nginx reload
 
-# Echo the IP
+# Echo the IP AND ADD THIS TO THE CONFIG FILES
 echo "{ \"SPA\": { \"dockerId\": \"${container}\", \"IP\": \"${ip}\" }, \"WP\": { \"dockerId\": \"${containerWp}\", \"IP\": \"${ipWp}\" }, \"LOG\": \"/var/log/wordpress-gcloud/${ACCESSURL}.log\"}"
