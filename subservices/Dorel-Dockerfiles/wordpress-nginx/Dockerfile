@@ -38,10 +38,12 @@ ENV dbhost ${dbhost}
 RUN apt-get update -qq -y
 
 # Install apt-utils
-RUN apt-get install php7.0 php7.0-mysql nginx wget -qq -y
+RUN apt-get install php7.0-fpm php7.0-mysql php7.0-mcrypt php-mbstring php-gettext mysql-client nginx wget -qq -y
 
 # Install wp-cli
 RUN wget -q -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -P ~ && \
+    phpenmod mcrypt && \
+    phpenmod mbstring && \
     chmod +x ~/wp-cli.phar && \
     mv ~/wp-cli.phar /usr/local/bin/wp
  
