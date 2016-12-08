@@ -34,7 +34,7 @@ ENV dbpass ${dbpass}
 ARG dbhost
 ENV dbhost ${dbhost}
 ARG branch
-ENV dbhost ${branch}
+ENV branch ${branch}
 
 # Update the repository sources list
 RUN apt-get update -qq -y
