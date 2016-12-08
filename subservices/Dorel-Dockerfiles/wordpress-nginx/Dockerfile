@@ -66,8 +66,8 @@ RUN chmod 777 /var/www/WordPress/wp-config.php && \
     chmod 777 /var/www/WordPress/wp-content
 
 # Set nginx config
-RUN rm /etc/nginx/sites-enabled/default && \
-    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default
+RUN rm -f /etc/nginx/sites-enabled/default && \
+    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default
 
 # SET WORDPRESS SECURITY (SEE GITHUB ISSUE)
 
