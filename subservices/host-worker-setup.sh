@@ -69,7 +69,11 @@ curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
 # Install MYSQL client and set pass and host
 apt-get install mysql-client-5.7 -qq -y
-mysql_config_editor set --login-path=local --host=${DBHOST} --user=root --password="${SQLPASS}"
+touch ~/.my.cnf
+echo "[client]" >> ~/.my.cnf
+echo "user = root" >> ~/.my.cnf
+echo "password = ${sqlpass}" >> ~/.my.cnf
+echo "host = ${sqlip}" >> ~/.my.cnf
 
 # Install gcloud
 apt-get install google-cloud-sdk
