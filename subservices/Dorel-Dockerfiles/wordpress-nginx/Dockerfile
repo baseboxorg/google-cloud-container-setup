@@ -33,6 +33,8 @@ ARG dbpass
 ENV dbpass ${dbpass}
 ARG dbhost
 ENV dbhost ${dbhost}
+ARG branch
+ENV dbhost ${branch}
 
 # Update the repository sources list
 RUN apt-get update -qq -y
@@ -54,21 +56,21 @@ RUN mkdir -p /var/www && \
     wp core download --path=/var/www/WordPress --allow-root
 
 # Config Wordpress
-# RUN wp core config --path=/var/www/WordPress --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
+RUN wp core config --path=/var/www/WordPress --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
 
 # Install Wordpress (ADD USERNAME AND PASSWORD LATER)
-# RUN wp core install --allow-root --path=/var/www/WordPress --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
+RUN wp core install --allow-root --path=/var/www/WordPress --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
 
 # Install super cache, first set chmod 777 and set back later
-#RUN chmod 777 /var/www/WordPress/wp-config.php && \
-#    chmod 777 /var/www/WordPress/wp-content
+RUN chmod 777 /var/www/WordPress/wp-config.php && \
+    chmod 777 /var/www/WordPress/wp-content
 
 # IMPORTANT: The wp-content dir is renamed so it can be remounted in the docker run with an external directory
-#RUN mv /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
+RUN mv /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
 
 # Set nginx config
-#RUN rm /etc/nginx/sites-enabled/default
-#ADD default /etc/nginx/sites-enabled/default
+RUN rm /etc/nginx/sites-enabled/default && \
+    https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default
 
 # SET WORDPRESS SECURITY (SEE GITHUB ISSUE)
 
