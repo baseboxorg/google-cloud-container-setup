@@ -72,8 +72,8 @@ apt-get install mysql-client-5.7 -qq -y
 touch ~/.my.cnf
 echo "[client]" >> ~/.my.cnf
 echo "user = root" >> ~/.my.cnf
-echo "password = ${sqlpass}" >> ~/.my.cnf
-echo "host = ${sqlip}" >> ~/.my.cnf
+echo "password = ${SQLPASS}" >> ~/.my.cnf
+echo "host = ${DBHOST}" >> ~/.my.cnf
 
 # Install gcloud
 apt-get install google-cloud-sdk
