@@ -1,0 +1,29 @@
+##
+# SPA nginx settings for Dorel websites
+# Author: Bob van Luijt
+##
+
+##
+# Define server settings
+##
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    # listen 443 ssl default_server;
+    # listen [::]:443 ssl default_server;
+    
+    charset UTF-8;
+    root /var/www/spa/build/bundled;
+    
+    index index.html index.htm;
+    server_name _;
+    
+    location ~* \.(js|css|svg|png|jpg|jpeg|gif|ico|eot|otf|ttf|woff)$ {
+        add_header Access-Control-Allow-Origin *;
+        add_header Cache-Control "public";
+        access_log off;
+        log_not_found off;
+        expires 1y;
+    }
+
+}
