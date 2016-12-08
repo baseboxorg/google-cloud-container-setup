@@ -9,8 +9,6 @@
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
-    # listen 443 ssl default_server;
-    # listen [::]:443 ssl default_server;
     
     charset UTF-8;
     root /var/www/spa/build/bundled;

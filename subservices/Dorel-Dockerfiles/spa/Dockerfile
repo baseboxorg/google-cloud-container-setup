@@ -22,21 +22,25 @@ ENV BRANCH ${branch}
 RUN apt-get update -qq -y
 
 # Install nginx, git and wget
-RUN apt-get install nginx git wget -qq -y
+RUN apt-get install nginx wget unzip -qq -y
 
 # Set nginx config
 RUN rm /etc/nginx/sites-enabled/default && \
-    wget 
+    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${BRANCH}/subservices/Dorel-Dockerfiles/spa/default -O /etc/nginx/sites-enabled/default
 
 # Setup Git
 RUN mkdir /var/www/spa && \
-    ssh-keyscan github.com >> ~/.ssh/known_hosts && \
-    git clone git@github.com:dorel/polymer-spa-dorel-juvenile.git /var/www/spa && \
-    git checkout ${BRANCH} && \
-    git pull
+    wget https://github.com/dorel/polymer-spa-dorel-juvenile/archive/${BRANCH}.zip -O /var/www/spa.zip && \
+    unzip /var/www/spa.zip -d /var/www/spa && \
+    rm /var/www/spa.zip && \
+    mv /var/www/spa/polymer-spa-dorel-juvenile-develop/build/bundled/* /var/www/spa && \
+    rm -r /var/www/spa/polymer-spa-dorel-juvenile-develop
 
-# Expose port 80 and 443
-EXPOSE 80 443
+# Remove unused packages
+RUN apt-get purge wget unzip -qq -y
+
+# Expose port 80 (NOTE: Not using 443, this is done by load balancer)
+EXPOSE 80
 
 # start nginx
 CMD nginx -g "daemon off;"
