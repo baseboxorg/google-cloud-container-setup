@@ -47,8 +47,8 @@ RUN wget -q -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp
  
 # Download Wordpress
 RUN rm -r /var/www/html
-RUN mkdir /var/www && \
-    mkdir /var/www/WordPress && \
+RUN mkdir -p /var/www && \
+    mkdir -p /var/www/WordPress && \
     wp core download --path=/var/www/WordPress --allow-root
 
 # Config Wordpress
