@@ -65,12 +65,9 @@ RUN wp core install --allow-root --path=/var/www/WordPress --url=${site_url} --t
 RUN chmod 777 /var/www/WordPress/wp-config.php && \
     chmod 777 /var/www/WordPress/wp-content
 
-# IMPORTANT: The wp-content dir is renamed so it can be remounted in the docker run with an external directory
-RUN mv /var/www/WordPress/wp-content /var/www/WordPress/wp-content_tmp
-
 # Set nginx config
 RUN rm /etc/nginx/sites-enabled/default && \
-    https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default
+    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/develop/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default
 
 # SET WORDPRESS SECURITY (SEE GITHUB ISSUE)
 
