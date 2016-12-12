@@ -126,6 +126,7 @@ container=$(docker run -d spa-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.
 ip=$(docker inspect "$container" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Add to acces url setup
+rm -f /etc/nginx/sites-enabled/default
 rm -f /etc/nginx/sites-enabled/${ACCESSURL}
 touch /etc/nginx/sites-enabled/${ACCESSURL}
 echo "server {" >> /etc/nginx/sites-enabled/${ACCESSURL}
@@ -171,4 +172,4 @@ echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 service nginx reload
 
 # Echo the IP AND ADD THIS TO THE CONFIG FILES
-echo "{ \"SPA\": { \"dockerId\": \"${container}\", \"IP\": \"${ip}\" }, \"WP\": { \"dockerId\": \"${containerWp}\", \"IP\": \"${ipWp}\" }, \"LOG\": \"/var/log/wordpress-gcloud/${ACCESSURL}.log\"}"
+echo "{ \"SPA\": { \"dockerId\": \"${container}\", \"IP\": \"${ip}\" }, \"WP\": { \"dockerId\": \"${containerWp}\", \"IP\": \"${ipWp}\" }, \"LOG\": \"/var/log/wordpress-gcloud/${ACCESSURL}.log\"}" > '/root/.latestSetup.json'
