@@ -99,6 +99,170 @@ function SetWorkerIdForContainer {
     fi
 }
 
+function CreateARecord {
+    nodejs <<EOF
+    'use strict';
+    var AWS   = require('aws-sdk'),
+    route53   = new AWS.Route53(),
+    params,
+    topDomain = "${ARECORDDOMAIN}".split('.').slice(2).join('.'); // remove subdomain
+
+    route53
+        .listHostedZones({}, function(err, data) {
+            if(err){
+                console.log('false');
+                console.log('ERROR IN listHostedZones');
+                console.log(err);
+            }
+            data
+                .HostedZones
+                .forEach(function(val, key){
+                    if(val.Name.indexOf(topDomain) !== -1){
+                        params = {
+                            ChangeBatch: {
+                            Changes: [
+                                {
+                                Action: 'CREATE',
+                                ResourceRecordSet: {
+                                    Name: "${ARECORDDOMAIN}",
+                                    Type: 'A',
+                                    ResourceRecords: [
+                                    {
+                                        Value: "${ARECORDIP}"
+                                    }
+                                    ],
+                                    TTL: 86400
+                                }
+                                }
+                            ],
+                            Comment: 'Automated Creation from Dorel Cloud tool'
+                            },
+                            HostedZoneId: val.Id
+                        };
+                        route53
+                            .changeResourceRecordSets(params, function(err, data) {
+                                if (err) {
+                                    console.log(false);
+                                    console.log('ERROR IN changeResourceRecordSets');
+                                    console.log(err);
+                                } else {
+                                    console.log('DONE');
+                                }
+                            });
+                    }
+                });
+        });
+EOF
+
+}
+
+function CreateCerts {
+    nodejs <<EOF
+        'use strict';
+        var domain = "${CERTDOMAIN}",
+            email  = "${CERTEMAIL}";
+        var domainSplit = domain.split('.');
+        var topDomain = domainSplit[domainSplit.length-2]+'.'+domainSplit[domainSplit.length-1],
+            AWS       = require('aws-sdk'),
+            route53   = new AWS.Route53(),
+            params,
+            spawn     = require( 'child_process' ).spawn,
+            certbotCommand = spawn( 'certbot',
+                ['--text', '--agree-tos', '--email', email,
+                '--expand', '--renew-by-default',
+                '--configurator', 'certbot-external-auth:out',
+                '--certbot-external-auth:out-public-ip-logging-ok',
+                '-d', domain,
+                '--renew-by-default',
+                '--preferred-challenges', 'dns',
+                'certonly']);
+        function IsJsonString(str) {
+            try {
+                JSON.parse(str);
+            } catch (e) {
+                return false;
+            }
+            return true;
+        }
+        certbotCommand.stdin.setEncoding('utf-8');
+        certbotCommand.stdout.on( 'data', function(data) {
+            if(IsJsonString(data) === true){
+                // Check if this script has the challenges
+                var JSONOBJECT1 = JSON.parse(data);
+                if(typeof JSONOBJECT1.txt_domain !== 'undefined' && typeof JSONOBJECT1.validation !== 'undefined'){
+                    /**
+                    * Create the settings in route 53
+                    */
+                    route53
+                        .listHostedZones({}, function(err, data) {
+                            if(err){
+                                console.log('false');
+                                console.log('ERROR IN listHostedZones');
+                                console.log(err);
+                            }
+                            data
+                            .HostedZones
+                            .forEach(function(val, key){
+                                if(val.Name.indexOf(topDomain) !== -1){
+                                params = {
+                                    ChangeBatch: {
+                                    Changes: [
+                                        {
+                                        Action: 'CREATE',
+                                        ResourceRecordSet: {
+                                            Name: JSONOBJECT1.txt_domain,
+                                            Type: 'TXT',
+                                            ResourceRecords: [
+                                            {
+                                                Value: '"' + JSONOBJECT1.validation + '"'
+                                            }
+                                            ],
+                                            TTL: 30
+                                        }
+                                        }
+                                    ],
+                                    Comment: 'Automated Creation from Dorel Cloud tool'
+                                    },
+                                    HostedZoneId: val.Id
+                                };
+                                route53
+                                    .changeResourceRecordSets(params, function(err, data) {
+                                    if (err) {
+                                        console.log(false);
+                                        console.log('ERROR IN changeResourceRecordSets');
+                                        console.log(err);
+                                    } else {
+                                        setTimeout(function(){
+                                            certbotCommand.stdin.write("next\n");
+                                        }, 45000); // some time to process
+                                    }
+                                    });
+                                }
+                            });
+                        });
+                }
+            }
+        });
+        certbotCommand.stdout.on('error', function (err) {
+            console.log(err);
+        });
+        certbotCommand.on( 'close', function(code) {
+            params.ChangeBatch.Changes[0].Action = 'DELETE';
+            route53
+                .changeResourceRecordSets(params, function(err, data) {
+                    if (err) {
+                        console.log(false);
+                        console.log('ERROR IN changeResourceRecordSets');
+                        console.log(err);
+                    } else {
+                        console.log('done');
+                    }
+                });
+        });
+EOF
+
+}
+
 # Get Wordpress database
 function GetWordpressData {
     WEBSITEACCESSPOINT=""
@@ -215,115 +379,6 @@ function SetSubProjectId {
     fi 
 }
 
-function GetAndSetCerts {
-    # Create certs, this Node script checks if there is access to AWS, finds the hosted zone and runs certbot
-nodejs <<EOF
-        'use strict';
-
-        var domain = "${CERTDOMAIN}",
-            email  = "${CERTEMAIL}";
-
-        var domainSplit = domain.split('.');
-
-        var topDomain = domainSplit[domainSplit.length-2]+'.'+domainSplit[domainSplit.length-1],
-            AWS       = require('aws-sdk'),
-            route53   = new AWS.Route53(),
-            spawn     = require( 'child_process' ).spawn,
-            certbotCommand = spawn( 'certbot',
-                ['--staging',
-                '--text', '--agree-tos', '--email', email,
-                '--expand', '--renew-by-default',
-                '--configurator', 'certbot-external-auth:out',
-                '--certbot-external-auth:out-public-ip-logging-ok',
-                '-d', domain,
-                '--renew-by-default',
-                '--preferred-challenges', 'dns',
-                'certonly']);
-
-        function IsJsonString(str) {
-            try {
-                JSON.parse(str);
-            } catch (e) {
-                return false;
-            }
-            return true;
-        }
-
-        certbotCommand.stdin.setEncoding('utf-8');
-
-        certbotCommand.stdout.on( 'data', function(data) {
-            if(IsJsonString(data) === true){
-                // Check if this script has the challenges
-                var JSONOBJECT1 = JSON.parse(data);
-                if(typeof JSONOBJECT1.txt_domain !== 'undefined' && typeof JSONOBJECT1.validation !== 'undefined'){
-                    /**
-                    * Create the settings in route 53
-                    */
-                    route53
-                        .listHostedZones({}, function(err, data) {
-
-                            if(err){
-                                console.log('false');
-                                console.log('ERROR IN listHostedZones');
-                                console.log(err);
-                            }
-
-                            data
-                            .HostedZones
-                            .forEach(function(val, key){
-                                if(val.Name.indexOf(topDomain) !== -1){
-                                var params = {
-                                    ChangeBatch: {
-                                    Changes: [
-                                        {
-                                        Action: 'CREATE',
-                                        ResourceRecordSet: {
-                                            Name: JSONOBJECT1.txt_domain,
-                                            Type: 'TXT',
-                                            ResourceRecords: [
-                                            {
-                                                Value: '"' + JSONOBJECT1.validation + '"'
-                                            }
-                                            ],
-                                            TTL: 60
-                                        }
-                                        }
-                                    ],
-                                    Comment: 'Automated Creation from Dorel Cloud tool'
-                                    },
-                                    HostedZoneId: val.Id
-                                };
-
-                                route53
-                                    .changeResourceRecordSets(params, function(err, data) {
-                                    if (err) {
-                                        console.log(false);
-                                        console.log('ERROR IN changeResourceRecordSets');
-                                        console.log(err);
-                                    } else {
-                                        setTimeout(function(){
-                                            certbotCommand.stdin.write("next\n");
-                                        }, 45000); // some time to process
-                                    }
-                                    });
-                                }
-                            });
-                        });
-                }
-            }
-        });
-
-        certbotCommand.stdout.on('error', function (err) {
-            console.log(err);
-        });
-
-        certbotCommand.on( 'close', function(code) {
-            console.log( 'child process exited with code ' + code );
-        });
-EOF
-
-}
-
 ###
 # INIT, RUN THE SCRIPT
 ###
@@ -381,15 +436,16 @@ case $CHOICE in
             ;;
 esac
 
-# Ask: What do you want to do?
+# Ask: What do you want to do? # note how update and reconnect are both the same!
 MENU="What do you want to do?"
-OPTIONS=(1 "New Wordpress installation"
-         2 "Recreate Wordpress installation"
-         3 "Delete Wordpress installation"
-         4 "Create new Docker worker within a sub-project"
-         5 "Create a new Docker project"
-         6 "Setup Route 53 credentials"
-         7 "Change global Google Cloud settings")
+OPTIONS=(1 "Dorel.io Service - New"
+         2 "Dorel.io Service - Update"
+         3 "Dorel.io Service - Reconnect"
+         4 "Dorel.io Service - Delete"
+         5 "Create a new Docker worker"
+         6 "Create a new Docker project"
+         7 "Setup Route 53 credentials"
+         8 "Change global Google Cloud settings")
 
 CHOICE=$(dialog --clear \
                 --backtitle "$BACKTITLE" \
@@ -405,6 +461,9 @@ case $CHOICE in
             TASK=$(echo new_wordpress)
             ;;
         2)
+            TASK=$(echo recreate_wordpress)
+            ;;
+        3)
             TASK=$(echo recreate_wordpress)
             ;;
         3)
@@ -456,15 +515,12 @@ then
 
     # Generate the Docker Wordpress container
     GenerateUid
-    echo $(((100/16)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
-    CONTAINERINFO=$(ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website \"${WEBSITEACCESSPOINT}\" --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" -br "${GITBRANCH}" && rm ~/container-setup.sh")
-
-    echo "DONE"
-    echo ${CONTAINERINFO}
-    exit 1
+    echo $(((100/28)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
+    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website \"${WEBSITEACCESSPOINT}\" --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" -br "${GITBRANCH}" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    CONTAINERINFO=$(ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "cat /root/.latestSetup.json")
 
     # Generate the Docker Redis container
-    echo $(((100/16)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
+    echo $(((100/28)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
 
     ##
     # Send hosted zone message
@@ -476,7 +532,7 @@ then
     ##
 
     # CERT I: Create certs for top domain
-    echo $(((100/16)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
+    echo $(((100/28)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
     GenerateUid
     CERTDOMAIN=$(echo ${WEBSITEACCESSPOINT})
     CERTNAME=$(echo ${CERTDOMAIN//./-})
@@ -484,106 +540,141 @@ then
     LOADBALANCERTYPE=$(echo "SPA")
     LOADBALANCERPREFIX=$(echo "dorel-io--${CERTNAME}")
     LOADBALANCERID=$(echo "-spa-${RANDOMUID}")
-    GetAndSetCerts
 
     # CERT I: Add certs to loadbalancer
-    echo $(((100/16)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer" 10 70 0
-    gcloud beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Requesting certs from Letsencrypt" 10 70 0
+    CERTDOMAINSTRIPE=$(echo ${CERTDOMAIN//./-})
+    CreateCerts
+    # Get the certdomain dir
+    CERTDOMAINDIR=$(find /etc/letsencrypt/live -maxdepth 1 -type d -name "*${CERTDOMAIN}*" -printf '%f' -quit)
+    # Get the old cert domain dir
+    touch cat ~/.certPath.conf
+    CERTDOMAINDIROLD=$(cat ~/.certPath.conf)
+    # Create random string for unique id
+    RANDOMSTRING=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
+    # Add certificates but remove first if available
+    gcloud -q beta compute ssl-certificates delete "${LOADBALANCERPREFIX}-ssl-certificates" | true
+    echo $(((100/28)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer. Requesting certs from Letsencrypt" 10 70 0
+    gcloud -q beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAINDIR}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAINDIR}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create https check
-    echo $(((100/12)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute https-health-checks create "${LOADBALANCERPREFIX}-https-health-checks" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute http-health-checks create "${LOADBALANCERPREFIX}-http-health-checks" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create backend service for loadbalancer
-    echo $(((100/12)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute backend-services create "${LOADBALANCERPREFIX}-backend-services" --protocol HTTPS --https-health-checks "${LOADBALANCERPREFIX}-https-health-checks" --port-name "https"  >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute backend-services create "${LOADBALANCERPREFIX}-backend-services" --protocol HTTP --http-health-checks "${LOADBALANCERPREFIX}-http-health-checks" --port-name "http"  >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: create the backend service
-    echo $(((100/12)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute backend-services add-backend "${LOADBALANCERPREFIX}-backend-services" --instance-group "${MACHINECHOICEGROUP}" --max-utilization "0.98" --instance-group-zone "${PROJECTLOCATION}" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute backend-services add-backend "${LOADBALANCERPREFIX}-backend-services" --instance-group "${MACHINECHOICEGROUP}" --max-utilization "0.98" --instance-group-zone "${PROJECTZONE}" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create url map
-    echo $(((100/12)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP for ${LOADBALANCERTYPE}" 10 70 0
+    echo $(((100/28)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP for ${LOADBALANCERTYPE}" 10 70 0
     gcloud --quiet compute url-maps create "${LOADBALANCERPREFIX}-url-maps" --default-service "${LOADBALANCERPREFIX}-backend-services" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Add paths to URL map
-    echo $(((100/12)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add urls to URL map for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud compute url-maps add-path-matcher "${LOADBALANCERPREFIX}-url-maps" --path-matcher-name "${LOADBALANCERPREFIX}-matcher-name" --default-service "${LOADBALANCERPREFIX}-backend-services" --path-rules "/*" --new-hosts "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*10)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add urls to URL map for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud compute url-maps add-path-matcher "${LOADBALANCERPREFIX}-url-maps" --path-matcher-name "${LOADBALANCERPREFIX}-matcher-name" --default-service "${LOADBALANCERPREFIX}-backend-services" --new-hosts "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create proxy to loadbalancer
-    echo $(((100/16)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
+    echo $(((100/28)*11)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
     gcloud --quiet compute target-https-proxies create "${LOADBALANCERPREFIX}-target-https-proxies" --url-map "${LOADBALANCERPREFIX}-url-maps" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create forwarding rules to loadbalancer
-    echo $(((100/16)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
+    echo $(((100/28)*12)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
     gcloud --quiet compute forwarding-rules create "${LOADBALANCERPREFIX}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${LOADBALANCERPREFIX}-target-https-proxies" >> /var/log/dorel/debug.log 2>&1
  
     # CERT I: enable CDN
-    echo $(((100/12)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN for ${LOADBALANCERTYPE}" 10 70 0
+    echo $(((100/28)*13)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN for ${LOADBALANCERTYPE}" 10 70 0
     gcloud beta --quiet compute backend-services update "${LOADBALANCERPREFIX}-backend-services" --enable-cdn >> /var/log/dorel/debug.log 2>&1
+
+    # Create A record
+    echo $(((100/28)*14)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
+    ARECORDDOMAIN=$(echo ${CERTDOMAIN})
+    ARECORDIP=$(gcloud compute forwarding-rules describe "${LOADBALANCERPREFIX}-forwarding-rule" --global --format json | jq -r '.IPAddress')
+    CreateARecord
 
     # Add worker name to JSON config
     nodejs <<EOF
         var fs    = require("fs")
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
-        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-target-https-proxies, "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-backend-services", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
+        obj.workers["${MACHINECHOICEGROUP}"] = obj.workers["${MACHINECHOICEGROUP}"] || [];
+        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-target-https-proxies", "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-backend-services", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
         fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
 EOF
 
     ##
     # Add the Wordpress certificate and loadbalancer
-    # NOTE: This will get added to the Exsisting URL map
     ##
 
     # CERT II: Create certs for top domain
-    echo $(((100/16)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
+    echo $(((100/28)*15)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
     GenerateUid
-    MAINSERVICE=$(echo "${LOADBALANCERPREFIX}-url-maps")
     CERTDOMAIN=$(echo wrps.api.${WEBSITEACCESSPOINT})
     CERTNAME=$(echo ${CERTDOMAIN//./-})
     CERTEMAIL=$(echo "IO@dorel.eu")
     LOADBALANCERTYPE=$(echo "WRPS")
     LOADBALANCERPREFIX=$(echo "dorel-io--${CERTNAME}")
     LOADBALANCERID=$(echo "-wrps-${RANDOMUID}")
-    GetAndSetCerts
 
     # CERT II: Add certs to loadbalancer
-    echo $(((100/16)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer" 10 70 0
-    gcloud beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAIN}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAIN}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*16)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Requesting certs from Letsencrypt" 10 70 0
+    CERTDOMAINSTRIPE=$(echo ${CERTDOMAIN//./-})
+    CreateCerts
+    # Get the certdomain dir
+    CERTDOMAINDIR=$(find /etc/letsencrypt/live -maxdepth 1 -type d -name "*${CERTDOMAIN}*" -printf '%f' -quit)
+    # Get the old cert domain dir
+    touch cat ~/.certPath.conf
+    CERTDOMAINDIROLD=$(cat ~/.certPath.conf)
+    # Create random string for unique id
+    RANDOMSTRING=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
+    # Add certificates but remove first if available
+    gcloud -q beta compute ssl-certificates delete "${LOADBALANCERPREFIX}-ssl-certificates" | true
+    echo $(((100/28)*17)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer. Requesting certs from Letsencrypt" 10 70 0
+    gcloud -q beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAINDIR}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAINDIR}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Create https check
-    echo $(((100/12)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute https-health-checks create "${LOADBALANCERPREFIX}-https-health-checks" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*18)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute http-health-checks create "${LOADBALANCERPREFIX}-http-health-checks" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Create backend service for loadbalancer
-    echo $(((100/12)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute backend-services create "${LOADBALANCERPREFIX}-backend-services" --protocol HTTPS --https-health-checks "${LOADBALANCERPREFIX}-https-health-checks" --port-name "https" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*19)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute backend-services create "${LOADBALANCERPREFIX}-backend-services" --protocol HTTP --http-health-checks "${LOADBALANCERPREFIX}-http-health-checks" --port-name "http"  >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: create the backend service
-    echo $(((100/12)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute backend-services add-backend "${LOADBALANCERPREFIX}-backend-services" --instance-group "${MACHINECHOICEGROUP}" --max-utilization "98" --instance-group-zone "${PROJECTLOCATION}" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*20)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute backend-services add-backend "${LOADBALANCERPREFIX}-backend-services" --instance-group "${MACHINECHOICEGROUP}" --max-utilization "0.98" --instance-group-zone "${PROJECTZONE}" >> /var/log/dorel/debug.log 2>&1
+
+    # CERT II: Create url map
+    echo $(((100/28)*21)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute url-maps create "${LOADBALANCERPREFIX}-url-maps" --default-service "${LOADBALANCERPREFIX}-backend-services" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Add paths to URL map
-    echo $(((100/12)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add urls to URL map for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud compute url-maps add-path-matcher "${MAINSERVICE}" --path-matcher-name "${LOADBALANCERPREFIX}-matcher-name" --default-service "${LOADBALANCERPREFIX}-backend-services" --path-rules "/*" --new-hosts "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*22)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add urls to URL map for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud compute url-maps add-path-matcher "${LOADBALANCERPREFIX}-url-maps" --path-matcher-name "${LOADBALANCERPREFIX}-matcher-name" --default-service "${LOADBALANCERPREFIX}-backend-services" --new-hosts "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Create proxy to loadbalancer
-    echo $(((100/16)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute target-https-proxies create "${LOADBALANCERPREFIX}-target-https-proxies" --url-map "${MAINSERVICE}" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*23)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute target-https-proxies create "${LOADBALANCERPREFIX}-target-https-proxies" --url-map "${LOADBALANCERPREFIX}-url-maps" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Create forwarding rules to loadbalancer
-    echo $(((100/16)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
+    echo $(((100/28)*24)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
     gcloud --quiet compute forwarding-rules create "${LOADBALANCERPREFIX}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${LOADBALANCERPREFIX}-target-https-proxies" >> /var/log/dorel/debug.log 2>&1
  
-    # CERT II: enable CDN
-    echo $(((100/12)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud beta --quiet compute backend-services update "${LOADBALANCERPREFIX}-backend-services" --enable-cdn >> /var/log/dorel/debug.log 2>&1
+    # Create A record II
+    echo $(((100/28)*25)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
+    ARECORDDOMAIN=$(echo ${CERTDOMAIN})
+    ARECORDIP=$(gcloud compute forwarding-rules describe "${LOADBALANCERPREFIX}-forwarding-rule" --global --format json | jq -r '.IPAddress')
+    CreateARecord
 
+    echo $(((100/28)*26)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Write to bucket" 10 70 0
     # Add worker name to JSON config
     nodejs <<EOF
         var fs    = require("fs")
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
-        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-target-https-proxies, "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-backend-services", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
+        obj.workers["${MACHINECHOICEGROUP}"] = obj.workers["${MACHINECHOICEGROUP}"] || [];
+        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-target-https-proxies", "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-backend-services", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
         fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
 EOF
 
@@ -632,6 +723,7 @@ then
     echo $(((100/6)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setting up cloud IPs" 10 70 0
     
     # Add access to the SQL instance
+    # Issue can be resolved with this: https://github.com/stedolan/jq/issues/354
     SQLADDIPS=$(gcloud sql instances describe ${SQLID} --format json  | jq -r '.settings.ipConfiguration.authorizedNetworks | join(",")')
     gcloud sql instances patch ${SQLID} --authorized-networks=${SQLADDIPS},${WORKERIP} >> /var/log/dorel/debug.log 2>&1
 
