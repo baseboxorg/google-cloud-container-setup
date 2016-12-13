@@ -5,9 +5,6 @@
 # Author: Bob van Luijt
 # Readme: https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud
 #
-#
-# ./container-setup.sh -w test0001.dorel.io -W test0001.dorel.io -t "test_website" -e "bob@kub.design" -U "admin" -ap "qwerty" -br develop
-#
 ###############
 
 ###
@@ -117,7 +114,7 @@ mv ~/container-setup/google-cloud-container-setup-${BRANCH}/* ~/container-setup 
 ###
 
 # Build spa container
-docker build --no-cache -t spa-gcloud -f ~/container-setup/subservices/Dorel-Dockerfiles/spa/Dockerfile --build-arg branch=${BRANCH} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+docker build -t spa-gcloud -f ~/container-setup/subservices/Dorel-Dockerfiles/spa/Dockerfile --build-arg branch=${BRANCH} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Exec spa container
 container=$(docker run -d spa-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
@@ -150,7 +147,7 @@ echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 #mysql -e "CREATE DATABASE IF NOT EXISTS ${DBNAME} ; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 #
 ## Build from the Dockerfile based on the env variables
-#echo docker build --no-cache -f ~/container-setup/subservices/Dorel-Dockerfiles/wordpress-nginx/Dockerfile -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg #site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg branch=${BRANCH} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+#echo docker build -f ~/container-setup/subservices/Dorel-Dockerfiles/wordpress-nginx/Dockerfile -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg #site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg branch=${BRANCH} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 #
 ## Build container, get the container ID and connect the dirs
 #containerWp=$(docker run -v /var/wordpress-content/${WPACCESSURL}:/var/www/WordPress/wp-content -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
