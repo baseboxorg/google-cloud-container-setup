@@ -91,7 +91,7 @@ function SetWorkerIdForContainer {
     WORKERIDCLOUDCONTAINER=$(dialog --inputbox "What is the name of the machine?" 0 0 dorel-io--${PROJECTNAME}--docker-worker- 2>&1 1>&3)
     exec 3>&-;
 
-    gcloud compute instances describe "${WORKERIDCLOUDCONTAINER}" --zone europe-west1-c
+    gcloud compute instances describe "${WORKERIDCLOUDCONTAINER}" --zone ${PROJECTZONE}
     if [ $? -eq 0 ]; then
         echo Found
     else
@@ -466,19 +466,19 @@ case $CHOICE in
         3)
             TASK=$(echo recreate_wordpress)
             ;;
-        3)
+        4)
             TASK=$(echo delete_wordpress)
             ;;
-        4)
+        5)
             TASK=$(echo create_worker)
             ;;
-        5)
+        6)
             TASK=$(echo init_google_cloud)
             ;;
-        6)
+        7)
             TASK=$(echo route53_setup)
             ;;
-        7)
+        8)
             TASK=$(echo change_project)
             ;;
 esac
@@ -557,42 +557,18 @@ then
     echo $(((100/28)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer. Requesting certs from Letsencrypt" 10 70 0
     gcloud -q beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAINDIR}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAINDIR}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
 
-    # CERT I: Create https check
-    echo $(((100/28)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute http-health-checks create "${LOADBALANCERPREFIX}-http-health-checks" >> /var/log/dorel/debug.log 2>&1
-
-    # CERT I: Create backend service for loadbalancer
-    echo $(((100/28)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute backend-services create "${LOADBALANCERPREFIX}-backend-services" --protocol HTTP --http-health-checks "${LOADBALANCERPREFIX}-http-health-checks" --port-name "http"  >> /var/log/dorel/debug.log 2>&1
-
-    # CERT I: create the backend service
-    echo $(((100/28)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute backend-services add-backend "${LOADBALANCERPREFIX}-backend-services" --instance-group "${MACHINECHOICEGROUP}" --max-utilization "0.98" --instance-group-zone "${PROJECTZONE}" >> /var/log/dorel/debug.log 2>&1
-
-    # CERT I: Create url map
-    echo $(((100/28)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute url-maps create "${LOADBALANCERPREFIX}-url-maps" --default-service "${LOADBALANCERPREFIX}-backend-services" >> /var/log/dorel/debug.log 2>&1
-
-    # CERT I: Add paths to URL map
-    echo $(((100/28)*10)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add urls to URL map for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud compute url-maps add-path-matcher "${LOADBALANCERPREFIX}-url-maps" --path-matcher-name "${LOADBALANCERPREFIX}-matcher-name" --default-service "${LOADBALANCERPREFIX}-backend-services" --new-hosts "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
-
     # CERT I: Create proxy to loadbalancer
     echo $(((100/28)*11)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute target-https-proxies create "${LOADBALANCERPREFIX}-target-https-proxies" --url-map "${LOADBALANCERPREFIX}-url-maps" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
+    gcloud --quiet compute target-https-proxies create "${CERTNAME}-trgt-https-prx" --url-map "${MACHINECHOICEGROUP}-url-maps" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create forwarding rules to loadbalancer
     echo $(((100/28)*12)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute forwarding-rules create "${LOADBALANCERPREFIX}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${LOADBALANCERPREFIX}-target-https-proxies" >> /var/log/dorel/debug.log 2>&1
+    gcloud --quiet compute forwarding-rules create "${CERTNAME}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${CERTNAME}-trgt-https-prx" >> /var/log/dorel/debug.log 2>&1
  
-    # CERT I: enable CDN
-    echo $(((100/28)*13)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Enable CDN for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud beta --quiet compute backend-services update "${LOADBALANCERPREFIX}-backend-services" --enable-cdn >> /var/log/dorel/debug.log 2>&1
-
     # Create A record
     echo $(((100/28)*14)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
     ARECORDDOMAIN=$(echo ${CERTDOMAIN})
-    ARECORDIP=$(gcloud compute forwarding-rules describe "${LOADBALANCERPREFIX}-forwarding-rule" --global --format json | jq -r '.IPAddress')
+    ARECORDIP=$(gcloud compute forwarding-rules describe "${CERTNAME}-forwarding-rule" --global --format json | jq -r '.IPAddress')
     CreateARecord
 
     # Add worker name to JSON config
@@ -600,7 +576,7 @@ then
         var fs    = require("fs")
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
         obj.workers["${MACHINECHOICEGROUP}"] = obj.workers["${MACHINECHOICEGROUP}"] || [];
-        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-target-https-proxies", "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-backend-services", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
+        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-trgt-https-prx", "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-bs", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
         fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
 EOF
 
@@ -634,38 +610,18 @@ EOF
     echo $(((100/28)*17)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer. Requesting certs from Letsencrypt" 10 70 0
     gcloud -q beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAINDIR}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAINDIR}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
 
-    # CERT II: Create https check
-    echo $(((100/28)*18)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create health check service for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute http-health-checks create "${LOADBALANCERPREFIX}-http-health-checks" >> /var/log/dorel/debug.log 2>&1
-
-    # CERT II: Create backend service for loadbalancer
-    echo $(((100/28)*19)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create backend service for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute backend-services create "${LOADBALANCERPREFIX}-backend-services" --protocol HTTP --http-health-checks "${LOADBALANCERPREFIX}-http-health-checks" --port-name "http"  >> /var/log/dorel/debug.log 2>&1
-
-    # CERT II: create the backend service
-    echo $(((100/28)*20)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setup load balancer for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute backend-services add-backend "${LOADBALANCERPREFIX}-backend-services" --instance-group "${MACHINECHOICEGROUP}" --max-utilization "0.98" --instance-group-zone "${PROJECTZONE}" >> /var/log/dorel/debug.log 2>&1
-
-    # CERT II: Create url map
-    echo $(((100/28)*21)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create URL MAP for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute url-maps create "${LOADBALANCERPREFIX}-url-maps" --default-service "${LOADBALANCERPREFIX}-backend-services" >> /var/log/dorel/debug.log 2>&1
-
-    # CERT II: Add paths to URL map
-    echo $(((100/28)*22)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add urls to URL map for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud compute url-maps add-path-matcher "${LOADBALANCERPREFIX}-url-maps" --path-matcher-name "${LOADBALANCERPREFIX}-matcher-name" --default-service "${LOADBALANCERPREFIX}-backend-services" --new-hosts "${CERTDOMAIN}" >> /var/log/dorel/debug.log 2>&1
-
     # CERT II: Create proxy to loadbalancer
-    echo $(((100/28)*23)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute target-https-proxies create "${LOADBALANCERPREFIX}-target-https-proxies" --url-map "${LOADBALANCERPREFIX}-url-maps" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*11)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute target-https-proxies create "${CERTNAME}-trgt-https-prx" --url-map "${MACHINECHOICEGROUP}-url-maps" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Create forwarding rules to loadbalancer
-    echo $(((100/28)*24)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
-    gcloud --quiet compute forwarding-rules create "${LOADBALANCERPREFIX}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${LOADBALANCERPREFIX}-target-https-proxies" >> /var/log/dorel/debug.log 2>&1
+    echo $(((100/28)*12)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
+    gcloud --quiet compute forwarding-rules create "${CERTNAME}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${CERTNAME}-trgt-https-prx" >> /var/log/dorel/debug.log 2>&1
  
-    # Create A record II
-    echo $(((100/28)*25)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
+    # Create A record
+    echo $(((100/28)*14)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
     ARECORDDOMAIN=$(echo ${CERTDOMAIN})
-    ARECORDIP=$(gcloud compute forwarding-rules describe "${LOADBALANCERPREFIX}-forwarding-rule" --global --format json | jq -r '.IPAddress')
+    ARECORDIP=$(gcloud compute forwarding-rules describe "${CERTNAME}-forwarding-rule" --global --format json | jq -r '.IPAddress')
     CreateARecord
 
     echo $(((100/28)*26)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Write to bucket" 10 70 0
@@ -674,7 +630,7 @@ EOF
         var fs    = require("fs")
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
         obj.workers["${MACHINECHOICEGROUP}"] = obj.workers["${MACHINECHOICEGROUP}"] || [];
-        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-target-https-proxies", "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-backend-services", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
+        obj.workers["${MACHINECHOICEGROUP}"].push({ "${LOADBALANCERTYPE}": { "ssl-certificates": "${LOADBALANCERPREFIX}-ssl-certificates", "target-https-proxies": "${LOADBALANCERPREFIX}-trgt-https-prx", "forwarding-rules": "${LOADBALANCERPREFIX}-forwarding-rules", "https-health-checks": "${LOADBALANCERPREFIX}-https-health-checks", "backend-services": "${LOADBALANCERPREFIX}-bs", "url-maps": "${LOADBALANCERPREFIX}-url-maps" }});
         fs.writeFileSync("${PROJECTNAME}.json", JSON.stringify(obj));
 EOF
 
@@ -682,7 +638,7 @@ EOF
     rm ~/${PROJECTNAME}.json
 
     # Show success message
-    dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new Wordpress instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${ADMINEMAIL} and password: ${RANDOMUID}" 0 0
+    dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${ADMINEMAIL} and password: ${RANDOMUID}" 0 0
 
 fi
 
@@ -727,8 +683,16 @@ then
     SQLADDIPS=$(gcloud sql instances describe ${SQLID} --format json  | jq -r '.settings.ipConfiguration.authorizedNetworks | join(",")')
     gcloud sql instances patch ${SQLID} --authorized-networks=${SQLADDIPS},${WORKERIP} >> /var/log/dorel/debug.log 2>&1
 
+    # Setup loadbalancer data
+    echo $(((100/6)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Setting up loadbalancer" 10 70 0
+    gcloud --quiet compute backend-services create "${DOCKERWORKERID}-bs" --protocol HTTP --http-health-checks "${PROJECTNAME}-http-health-checks" --port-name "http" >> /var/log/dorel/debug.log 2>&1
+    gcloud --quiet compute backend-services add-backend "${DOCKERWORKERID}-bs" --instance-group "${DOCKERWORKERID}" --max-utilization "0.98" --instance-group-zone "${PROJECTZONE}" >> /var/log/dorel/debug.log 2>&1
+    gcloud beta --quiet compute backend-services update "${DOCKERWORKERID}-bs" --enable-cdn >> /var/log/dorel/debug.log 2>&1
+    gcloud --quiet compute url-maps create "${DOCKERWORKERID}-url-maps" --default-service "${DOCKERWORKERID}-bs" >> /var/log/dorel/debug.log 2>&1
+    gcloud --quiet compute url-maps add-path-matcher "${DOCKERWORKERID}-url-maps" --path-matcher-name "${DOCKERWORKERID}-matcher-name" --default-service "${DOCKERWORKERID}-bs" >> /var/log/dorel/debug.log 2>&1
+
     # This script will create the ssh key files needed to login
-    echo $(((100/6)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Building the Ubuntu installation (might take some time)" 10 70 0
+    echo $(((100/6)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Building the Docker worker installation (might take some time)" 10 70 0
     gcloud compute ssh ${WORKERID} --command "ls" >> /var/log/dorel/debug.log 2>&1
 
     # Exec the setup
@@ -736,7 +700,7 @@ then
 
     # Add worker name to JSON config
     nodejs <<EOF
-        var fs    = require("fs")
+        var fs = require("fs");
         var obj = JSON.parse(fs.readFileSync("${PROJECTNAME}.json", 'utf8'));
         obj.workers = obj.workers || {};
         obj.workers["${DOCKERWORKERID}"] = obj.workers["${DOCKERWORKERID}"] || [];
@@ -770,21 +734,17 @@ then
 
   # Create instance template for worker
   echo $(((100/9)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create template for worker" 10 70 0
-  gcloud --quiet compute -q --verbosity=error instance-templates create "dorel-io--${PROJECTNAME}--docker-worker-template" --machine-type "${DOCKERMANAGERTYPE}" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --tags "https-server" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-worker-template" >> /var/log/dorel/debug.log 2>&1
-  
-  # Create instance template for manager
-  echo $(((100/9)*2)) | dialog --gauge "Create template for manager" 10 70 0
-  gcloud --quiet compute -q --verbosity=error instance-templates create "dorel-io--${PROJECTNAME}--docker-manager-template" --machine-type "${DOCKERMANAGERTYPE}" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-manager-template" >> /var/log/dorel/debug.log 2>&1
+  gcloud --quiet compute -q --verbosity=error instance-templates create "dorel-io--${PROJECTNAME}--docker-worker-template" --machine-type "${DOCKERMANAGERTYPE}" --network "default" --maintenance-policy "MIGRATE" --scopes default="https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/sqlservice.admin","https://www.googleapis.com/auth/trace.append","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/devstorage.full_control" --tags "http-server" --image "/ubuntu-os-cloud/ubuntu-1604-xenial-v20161020" --boot-disk-size "25" --boot-disk-type "pd-standard" --boot-disk-device-name "dorel-io-docker-worker-template" >> /var/log/dorel/debug.log 2>&1
 
   # Generate UID
   GenerateUid
   
-  # Create SQL
+  # Create SQL and set current IP as auth network
   echo $(((100/9)*4)) | dialog --gauge "Create cloud SQL with replica (might take some time)" 10 70 0
   GenerateUid
   SQLID="dorel-io--${PROJECTNAME}--database-${RANDOMUID}"
   SQLFAILOVERID="dorel-io--${PROJECTNAME}--failover-database-${RANDOMUID}"
-  gcloud --quiet beta sql instances create "${SQLID}" --tier "db-n1-highmem-4" --activation-policy "ALWAYS" --backup-start-time "01:23" --database-version "MYSQL_5_7" --enable-bin-log --failover-replica-name "${SQLFAILOVERID}" --gce-zone "${PROJECTZONE}" --maintenance-release-channel "PRODUCTION" --maintenance-window-day "SUN" --maintenance-window-hour "01" --region "${PROJECTLOCATION}" --replica-type "FAILOVER" --replication ASYNCHRONOUS --storage-auto-increase --storage-size "50GB" --storage-type "SSD" >> /var/log/dorel/debug.log 2>&1
+  gcloud --quiet beta sql instances create "${SQLID}" --tier "db-n1-highmem-4" --activation-policy "ALWAYS" --backup-start-time "01:23" --database-version "MYSQL_5_7" --enable-bin-log --failover-replica-name "${SQLFAILOVERID}" --gce-zone "${PROJECTZONE}" --maintenance-release-channel "PRODUCTION" --maintenance-window-day "SUN" --maintenance-window-hour "01" --authorized-networks="$(curl -s checkip.dyndns.org | sed -e 's/.*Current IP Address: //' -e 's/<.*$//')" --region "${PROJECTLOCATION}" --replica-type "FAILOVER" --replication ASYNCHRONOUS --storage-auto-increase --storage-size "50GB" --storage-type "SSD" >> /var/log/dorel/debug.log 2>&1
 
   # Create datastore bucket
   echo $(((100/9)*5)) | dialog --gauge "Create storage bucket" 10 70 0
@@ -796,8 +756,12 @@ then
   gcloud --quiet sql instances set-root-password "${SQLID}" --password "${PASSWORD1}" >> /var/log/dorel/debug.log 2>&1
   SQLIP=$(gcloud sql --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
 
+  # Create HTTP Health check
+  echo $(((100/9)*7)) | dialog --gauge "Create http health check" 10 70 0
+  gcloud --quiet compute http-health-checks create "${PROJECTNAME}-http-health-checks"
+
   # Create the JSON object and Store to bucket
-  echo $(((100/9)*9)) | dialog --gauge "Store config to config bucket in file: ${PROJECTNAME}.json" 10 70 0
+  echo $(((100/9)*8)) | dialog --gauge "Store config to config bucket in file: ${PROJECTNAME}.json" 10 70 0
   PROJECTOBJECT="{ \"projectName\": \"dorel-io--${PROJECTNAME}\", \"projectNameShort\": \"${PROJECTNAME}\", \"db\": { \"id\": \"${SQLID}\" }, \"workers\": [] }"
   gsutil --quiet mb -p "${PROJECTID}" -c "NEARLINE" -l "${PROJECTLOCATION}" "gs://dorel-io--config-bucket" || true
   touch ~/${PROJECTNAME}.json
