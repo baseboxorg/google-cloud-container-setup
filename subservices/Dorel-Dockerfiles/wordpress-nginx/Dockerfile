@@ -1,8 +1,8 @@
 ###############
 #
-# Docker setup for Dorel Wordpress and PHP7 FPM
+# Docker setup for Dorel Wordpress and PHP7.1
 # Author: Bob van Luijt
-# Readme: https://github.com/bobvanluijt/Docker-multi-wordpress-hhvm-google-cloud
+# Readme: https://github.com/dorel/google-cloud-container-setup
 #
 ###############
 
@@ -23,8 +23,6 @@ ARG admin_user
 ENV admin_user ${admin_user}
 ARG admin_pass
 ENV admin_pass ${admin_pass}
-ARG ssl_domain
-ENV ssl_domain ${ssl_domain}
 ARG dbname
 ENV dbname ${dbname}
 ARG dbuser
@@ -35,12 +33,25 @@ ARG dbhost
 ENV dbhost ${dbhost}
 ARG branch
 ENV branch ${branch}
+ARG fpmip
+ENV fpmip ${fpmip}
 
 # Update the repository sources list
 RUN apt-get update -qq -y
 
-# Install apt-utils
-RUN apt-get install php7.0-fpm php7.0-mysql php7.0-mcrypt php-mbstring php-gettext mysql-client nginx wget -qq -y
+# Install tools
+RUN apt-get install mysql-client nginx wget curl -qq -y
+
+# Install PHP 7.1
+RUN echo "deb http://ppa.launchpad.net/ondrej/php/ubuntu xenial main" > /etc/apt/sources.list.d/ondrej-php.list \
+    && echo "deb http://ppa.launchpad.net/ondrej/php-qa/ubuntu xenial main" > /etc/apt/sources.list.d/ondrej-php-qa.list \
+    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4F4EA0AAE5267A6C \
+    && apt-get update \
+    && apt-get -y --no-install-recommends install php7.1-cli php7.1-curl \
+        php7.1-json php7.1-mcrypt php7.1-opcache php7.1-readline php7.1-xml php7.1-zip php-mbstring php7.1-mbstring \
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/* ~/.composer
 
 # Install wp-cli
 RUN wget -q -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -P ~ && \
@@ -67,9 +78,8 @@ RUN chmod 777 /var/www/WordPress/wp-config.php && \
 
 # Set nginx config
 RUN rm -f /etc/nginx/sites-enabled/default && \
-    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default
-
-# SET WORDPRESS SECURITY (SEE GITHUB ISSUE)
+    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default && \
+    sed -i -e "s/FPM_SERVER_IP_ADDRESS/${fpmip}/g" /etc/nginx/sites-enabled/default
 
 # remove unused things, also remove PHP and wp-cli
 RUN apt-get purge wget -qq -y && \
