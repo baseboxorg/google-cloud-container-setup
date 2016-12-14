@@ -47,7 +47,7 @@ RUN echo "deb http://ppa.launchpad.net/ondrej/php/ubuntu xenial main" > /etc/apt
     && echo "deb http://ppa.launchpad.net/ondrej/php-qa/ubuntu xenial main" > /etc/apt/sources.list.d/ondrej-php-qa.list \
     && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4F4EA0AAE5267A6C \
     && apt-get update \
-    && apt-get -y --no-install-recommends install php7.1-cli php7.1-curl \
+    && apt-get -y --no-install-recommends install php7.1-cli php7.1-mysql php7.1-curl \
         php7.1-json php7.1-mcrypt php7.1-opcache php7.1-readline php7.1-xml php7.1-zip php-mbstring php7.1-mbstring \
     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
     && apt-get clean \
@@ -63,18 +63,18 @@ RUN wget -q -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp
 # Download Wordpress
 RUN rm -r /var/www/html
 RUN mkdir -p /var/www && \
-    mkdir -p /var/www/WordPress && \
-    wp core download --path=/var/www/WordPress --allow-root
+    mkdir -p /var/www/WordPressPre && \
+    wp core download --path=/var/www/WordPressPre --allow-root
 
 # Config Wordpress
-RUN wp core config --path=/var/www/WordPress --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
+RUN wp core config --path=/var/www/WordPressPre --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
 
 # Install Wordpress (ADD USERNAME AND PASSWORD LATER)
-RUN wp core install --allow-root --path=/var/www/WordPress --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
+RUN wp core install --allow-root --path=/var/www/WordPressPre --url=${site_url} --title=${site_title} --admin_user=${admin_user} --admin_password=${admin_pass} --admin_email=${admin_email}
 
 # Install super cache, first set chmod 777 and set back later
-RUN chmod 777 /var/www/WordPress/wp-config.php && \
-    chmod 777 /var/www/WordPress/wp-content
+RUN chmod 777 /var/www/WordPressPre/wp-config.php && \
+    chmod 777 /var/www/WordPressPre/wp-content
 
 # Set nginx config
 RUN rm -f /etc/nginx/sites-enabled/default && \
