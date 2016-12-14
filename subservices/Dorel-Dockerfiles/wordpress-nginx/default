@@ -22,8 +22,6 @@ map $request_uri $ex {
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
-    # listen 443 ssl default_server;
-    # listen [::]:443 ssl default_server;
     
     charset UTF-8;
     root /var/www/WordPress;
@@ -39,7 +37,7 @@ server {
         fastcgi_index index.php;
         fastcgi_pass FPM_SERVER_IP_ADDRESS:9000; # This will be replaced with the FMP address
         include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME /var/www/WordPress;
         # set headers
         add_header Cache-Control $cc; # as defined in the map
         access_log off;
