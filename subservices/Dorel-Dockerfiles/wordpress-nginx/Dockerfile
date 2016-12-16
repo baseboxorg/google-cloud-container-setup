@@ -112,9 +112,9 @@ RUN wget https://github.com/dorel/wordpress-theme-dorel-juvenile/archive/${branc
     wp theme delete --allow-root --path=${wordpresslocation} twentyseventeen
 
 # Import acf files
-RUN wp acf import --allow-root --path=${wordpresslocation} --json_file=--allow-root --path=${wordpresslocation}/wp-content/themes/dorel.io/acf-exports/home-page-builder.json && \
-    wp acf import --allow-root --path=${wordpresslocation} --json_file=--allow-root --path=${wordpresslocation}/wp-content/themes/dorel.io/acf-exports/info-page-builder.json && \
-    wp acf import --allow-root --path=${wordpresslocation} --json_file=--allow-root --path=${wordpresslocation}/wp-content/themes/dorel.io/acf-exports/marketing-page-builder.json
+RUN wp acf import --allow-root --path=${wordpresslocation} --json_file=${wordpresslocation}/wp-content/themes/dorel.io/acf-exports/home-page-builder.json && \
+    wp acf import --allow-root --path=${wordpresslocation} --json_file=${wordpresslocation}/wp-content/themes/dorel.io/acf-exports/info-page-builder.json && \
+    wp acf import --allow-root --path=${wordpresslocation} --json_file=${wordpresslocation}/wp-content/themes/dorel.io/acf-exports/marketing-page-builder.json
 
 # Add editor
 RUN wp user --allow-root --path=${wordpresslocation} create ${editor_user} ${editor_email} --user_pass="${editor_pass}" --role=editor
