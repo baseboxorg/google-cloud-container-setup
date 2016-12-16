@@ -267,7 +267,7 @@ EOF
 function GetWordpressData {
     WEBSITEACCESSPOINT=""
     TITLE=""
-    ADMINEMAIL=""
+    EDITOREMAIL=""
     # open fd
     exec 3>&1
     # Store data to $VALUES variable
@@ -278,7 +278,7 @@ function GetWordpressData {
         15 50 0 \
                 "Access Url:"    1 1 "$WEBSITEACCESSPOINT" 1 16 40 0 \
                 "Website Title:" 2 1 "$TITLE"              2 16 40 0 \
-                "Admin Email:"   3 1 "$ADMINEMAIL"         3 16 40 0 \
+                "Editor Email:"   3 1 "$EDITOREMAIL"         3 16 40 0 \
         2>&1 1>&3)
     exec 3>&-
 
@@ -286,7 +286,7 @@ function GetWordpressData {
     IFS=","; declare -a Array=($*) 
     WEBSITEACCESSPOINT="${Array[0]}" 
     TITLE="${Array[1]}" 
-    ADMINEMAIL="${Array[2]}"
+    EDITOREMAIL="${Array[2]}"
 
     # Validate the URL
     echo $WEBSITEACCESSPOINT | grep -q -P "^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$"
@@ -296,9 +296,9 @@ function GetWordpressData {
     fi
 
     # Validate email
-    echo $ADMINEMAIL | grep -q -P "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b"
+    echo $EDITOREMAIL | grep -q -P "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b"
     if [ $? -eq 1 ] ; then
-        dialog --msgbox "This (${ADMINEMAIL}) is not a valid email" 0 0
+        dialog --msgbox "This (${EDITOREMAIL}) is not a valid email" 0 0
         GetWordpressData
     fi
 
@@ -362,6 +362,7 @@ function GenerateIp {
 # create a UID
 function GenerateUid {
     RANDOMUID=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
+    RANDOMUID2=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
 }
 
 # set the subproject ID
@@ -516,7 +517,7 @@ then
     # Generate the Docker Wordpress container
     GenerateUid
     echo $(((100/28)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
-    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website \"${WEBSITEACCESSPOINT}\" --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --adminemail \"${ADMINEMAIL}\" --adminuser \"${ADMINEMAIL}\" --adminpass \"${RANDOMUID}\" -br "${GITBRANCH}" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website \"${WEBSITEACCESSPOINT}\" --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --editoremail \"${EDITOREMAIL}\" --editoruser \"${EDITOREMAIL}\" --editorpass \"${RANDOMUID}\" --adminpass \"${RANDOMUID2}\" -br "${GITBRANCH}" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
     CONTAINERINFO=$(ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "cat /root/.latestSetup.json")
 
     # Generate the Docker Redis container
@@ -638,7 +639,7 @@ EOF
     rm ~/${PROJECTNAME}.json
 
     # Show success message
-    dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${ADMINEMAIL} and password: ${RANDOMUID}" 0 0
+    dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${EDITOREMAIL} and password: ${RANDOMUID}. Admin user: io@dorel.eu Admin pass: ${RANDOMUID2}" 0 0
 
 fi
 

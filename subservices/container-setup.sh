@@ -26,12 +26,16 @@ case $key in
     TITLE="$2"
     shift # past argument
     ;;
-    -e|--adminemail)
-    ADMINEMAIL="$2"
+    -e|--editoremail)
+    EDITOREMAIL="$2"
     shift # past argument
     ;;
-    -U|--adminuser)
-    ADMINUSER="$2"
+    -U|--editoruser)
+    EDITORUSER="$2"
+    shift # past argument
+    ;;
+    -ep|--editorpass)
+    EDITORPASS="$2"
     shift # past argument
     ;;
     -ap|--adminpass)
@@ -49,13 +53,14 @@ done
 ###
 # Validate if needed arguments are available
 ###
-if [ -z ${WEBSITE} ];    then echo "-w or --website is unset | abort";    exit 1; fi
-if [ -z ${ACCESSURL} ];  then echo "-W or --accessurl is unset | abort";  exit 1; fi
-if [ -z ${TITLE} ];      then echo "-t or --title is unset | abort";      exit 1; fi
-if [ -z ${ADMINEMAIL} ]; then echo "-e or --adminemail is unset | abort"; exit 1; fi
-if [ -z ${ADMINUSER} ];  then echo "-U or --adminuser is unset | abort";  exit 1; fi
-if [ -z ${ADMINPASS} ];  then echo "-ap or --adminpass is unset | abort"; exit 1; fi
-if [ -z ${BRANCH} ];     then echo "-br or --branch is unset | abort";    exit 1; fi
+if [ -z ${WEBSITE} ];     then echo "-w or --website is unset | abort";    exit 1; fi
+if [ -z ${ACCESSURL} ];   then echo "-W or --accessurl is unset | abort";  exit 1; fi
+if [ -z ${TITLE} ];       then echo "-t or --title is unset | abort";      exit 1; fi
+if [ -z ${EDITOREMAIL} ]; then echo "-e or --editoremail is unset | abort"; exit 1; fi
+if [ -z ${EDITORUSER} ];  then echo "-U or --editoruser is unset | abort";  exit 1; fi
+if [ -z ${EDITORPASS} ];  then echo "-ep or --editorpass is unset | abort"; exit 1; fi
+if [ -z ${ADMINPASS} ];   then echo "-ap or --adminpass is unset | abort"; exit 1; fi
+if [ -z ${BRANCH} ];      then echo "-br or --branch is unset | abort";    exit 1; fi
 
 ###
 # Create or select all DB related info
@@ -65,6 +70,8 @@ DBHOST=${DBINFO#*host = }
 DBNAME=$(echo ${ACCESSURL} | tr . _)
 DBUSER=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 DBPASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+# Set ACCESSURL for Wordpress API
+WPACCESSURL="wp.api.${ACCESSURL}"
 
 ###
 # 1. Validate if the domainname is valid (for letsencrypt)
@@ -114,7 +121,7 @@ mv ~/container-setup/google-cloud-container-setup-${BRANCH}/* ~/container-setup 
 ###
 
 # Build spa container
-docker build -t spa-gcloud -f ~/container-setup/subservices/Dorel-Dockerfiles/spa/Dockerfile --build-arg branch=${BRANCH} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+docker build -t spa-gcloud -f ~/container-setup/subservices/Dorel-Dockerfiles/spa/Dockerfile --build-arg wpapi=${WPACCESSURL} --build-arg branch=${BRANCH} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Exec spa container
 container=$(docker run -d spa-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
@@ -137,15 +144,11 @@ echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 # Start the creation process WORDPRESS
 ###
 
-# Set ACCESSURL for Wordpress API
-WPACCESSURL="wp.api.${ACCESSURL}"
-
 ## mkdir for wp-content
 mkdir -m 777 -p /var/wordpress-content/${WPACCESSURL}
 
 ## Create mySQL instance with new users
 mysql -e "CREATE DATABASE IF NOT EXISTS ${DBNAME} ; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${ACCESSURL}.log
-
 
 # Create volume to share
 docker volume create --name "${WPACCESSURL}"
@@ -153,12 +156,12 @@ docker volume create --name "${WPACCESSURL}"
 # build php-fpm
 docker build -f ~/container-setup/subservices/Dorel-Dockerfiles/php-fpm/Dockerfile -t php-fpm .
 
-# Run fpm
+# Run fpm and get IP of container
 FPMCONTAINER=$(docker run -v ${WPACCESSURL}:/var/www/WordPress -d php-fpm)
 FPMCONTAINERIP=$(docker inspect "${FPMCONTAINER}" | jq -r '.[0].NetworkSettings.IPAddress')
 
 ## Build from the Dockerfile based on the env variables
-docker build -f ~/container-setup/subservices/Dorel-Dockerfiles/wordpress-nginx/Dockerfile -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg branch=${BRANCH} --build-arg admin_pass=${ADMINPASS} --build-arg fpmip="${FPMCONTAINERIP}" . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+docker build -f ~/container-setup/subservices/Dorel-Dockerfiles/wordpress-nginx/Dockerfile -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title="${TITLE}" --build-arg editor_email=${EDITOREMAIL} --build-arg site_url=${ACCESSURL} --build-arg editor_user=${EDITORUSER} --build-arg branch=${BRANCH} --build-arg admin_pass=${ADMINPASS} --build-arg editor_pass=${EDITORPASS} --build-arg fpmip="${FPMCONTAINERIP}" . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 ## Build container, get the container ID and connect the dirs
 containerWp=$(docker run -v www.test1.com:/var/www/WordPressPre -v /var/wordpress-content/${WPACCESSURL}:/var/www/WordPress/wp-content -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
@@ -180,4 +183,4 @@ echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 service nginx reload
 
 # Echo the IP AND ADD THIS TO THE CONFIG FILES
-echo "{ \"SPA\": { \"dockerId\": \"${container}\", \"IP\": \"${ip}\" }, \"WP\": { \"dockerId\": \"${containerWp}\", \"IP\": \"${ipWp}\" }, \"LOG\": \"/var/log/wordpress-gcloud/${ACCESSURL}.log\"}" > '/root/.latestSetup.json'
+echo "{ \"SPA\": { \"dockerId\": \"${container}\", \"IP\": \"${ip}\" }, \"WP\": { \"dockerId\": \"${containerWp}\", \"IP\": \"${ipWp}\" }, \"FPM\": { \"dockerId\": \"${FPMCONTAINER}\", \"IP\": \"${FPMCONTAINERIP}\" }, \"LOG\": \"/var/log/wordpress-gcloud/${ACCESSURL}.log\"}" > '/root/.latestSetup.json'
