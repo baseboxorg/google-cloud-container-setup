@@ -37,6 +37,8 @@ ARG branch
 ENV branch ${branch}
 ARG fpmip
 ENV fpmip ${fpmip}
+ARG wordpresslocation
+ENV wordpresslocation /var/www/WordPressPre
 
 # Update the repository sources list
 RUN apt-get update -qq -y
@@ -66,13 +68,13 @@ RUN wget -q -nv https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp
 RUN rm -r /var/www/html
 RUN mkdir -p /var/www && \
     mkdir -p /var/www/WordPressPre && \
-    wp core download --path=/var/www/WordPressPre --allow-root
+    wp core download --path=${wordpresslocation} --allow-root
 
 # Config Wordpress
-RUN wp core config --path=/var/www/WordPressPre --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
+RUN wp core config --path=${wordpresslocation} --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
 
 # Install Wordpress NEED TO CHANGE PASS SETTINGS
-RUN wp core install --allow-root --path=/var/www/WordPressPre --url=${site_url} --title=${site_title} --editor_user=admin --editor_password=qwerty --editor_email=io@dorel.eu
+RUN wp core install --allow-root --path=${wordpresslocation} --url=${site_url} --title=${site_title} --editor_user=admin --editor_password=qwerty --editor_email=io@dorel.eu
 
 # Set chmod 777 and set back later
 RUN chmod 777 /var/www/WordPressPre/wp-config.php && \
@@ -80,8 +82,8 @@ RUN chmod 777 /var/www/WordPressPre/wp-config.php && \
     mkdir -p /var/www/WordPressPre/wp-content/plugins
 
 # Delete standard plugins
-RUN wp plugin delete --allow-root --path=/var/www/WordPressPre akismet && \
-    wp plugin delete --allow-root --path=/var/www/WordPressPre hello
+RUN wp plugin delete --allow-root --path=${wordpresslocation} akismet && \
+    wp plugin delete --allow-root --path=${wordpresslocation} hello
 
 # Download ACF data
 RUN wget "http://connect.advancedcustomfields.com/index.php?p=pro&a=download&k=b3JkZXJfaWQ9NTA1NjV8dHlwZT1kZXZlbG9wZXJ8ZGF0ZT0yMDE1LTAyLTIzIDA2OjUyOjM4" -O /var/www/WordPressPre/wp-content/plugins/acf-pro.zip && \
@@ -91,12 +93,12 @@ RUN wget "http://connect.advancedcustomfields.com/index.php?p=pro&a=download&k=b
     mv /var/www/WordPressPre/wp-content/plugins/advanced-custom-fields-wpcli/advanced-custom-fields-wpcli-3.0.0/* /var/www/WordPressPre/wp-content/plugins/advanced-custom-fields-wpcli/
 
 # Install needed plugins
-RUN wp plugin install --allow-root --path=/var/www/WordPressPre wordpress-importer --activate && \
-    wp plugin install --allow-root --path=/var/www/WordPressPre rest-api --activate && \
-    wp plugin install --allow-root --path=/var/www/WordPressPre wp-api-menus --activate && \
-    wp plugin install --allow-root --path=/var/www/WordPressPre /var/www/WordPressPre/wp-content/plugins/acf-pro.zip --activate && \
-    wp plugin install --allow-root --path=/var/www/WordPressPre acf-to-rest-api --activate && \
-    wp plugin activate --allow-root --path=/var/www/WordPressPre advanced-custom-fields-wpcli
+RUN wp plugin install --allow-root --path=${wordpresslocation} wordpress-importer --activate && \
+    wp plugin install --allow-root --path=${wordpresslocation} rest-api --activate && \
+    wp plugin install --allow-root --path=${wordpresslocation} wp-api-menus --activate && \
+    wp plugin install --allow-root --path=${wordpresslocation} /var/www/WordPressPre/wp-content/plugins/acf-pro.zip --activate && \
+    wp plugin install --allow-root --path=${wordpresslocation} acf-to-rest-api --activate && \
+    wp plugin activate --allow-root --path=${wordpresslocation} advanced-custom-fields-wpcli
 
 # Install theme
 RUN wget https://github.com/dorel/wordpress-theme-dorel-juvenile/archive/${branch}.zip -O ~/theme.zip && \
@@ -104,13 +106,18 @@ RUN wget https://github.com/dorel/wordpress-theme-dorel-juvenile/archive/${branc
     rm ~/theme.zip && \
     mkdir -p /var/www/WordPressPre/wp-content/themes/dorel.io && \
     mv ~/wordpress-theme-dorel-juvenile-${branch}/* /var/www/WordPressPre/wp-content/themes/dorel.io/ && \
-    wp theme activate --allow-root --path=/var/www/WordPressPre "dorel.io" && \
-    wp theme delete --allow-root --path=/var/www/WordPressPre twentysixteen && \
-    wp theme delete --allow-root --path=/var/www/WordPressPre twentyfifteen && \
-    wp theme delete --allow-root --path=/var/www/WordPressPre twentyseventeen
+    wp theme activate --allow-root --path=${wordpresslocation} "dorel.io" && \
+    wp theme delete --allow-root --path=${wordpresslocation} twentysixteen && \
+    wp theme delete --allow-root --path=${wordpresslocation} twentyfifteen && \
+    wp theme delete --allow-root --path=${wordpresslocation} twentyseventeen
+
+# Import acf files
+RUN wp acf import --allow-root --path=${wordpresslocation} --json_file=--allow-root --path=${wordpresslocation}/wp-content/themes/dorel.io/acf-exports/home-page-builder.json && \
+    wp acf import --allow-root --path=${wordpresslocation} --json_file=--allow-root --path=${wordpresslocation}/wp-content/themes/dorel.io/acf-exports/info-page-builder.json && \
+    wp acf import --allow-root --path=${wordpresslocation} --json_file=--allow-root --path=${wordpresslocation}/wp-content/themes/dorel.io/acf-exports/marketing-page-builder.json
 
 # Add editor
-RUN wp user --allow-root --path=/var/www/WordPressPre create ${editor_user} ${editor_email} --user_pass="${editor_pass}" --role=editor
+RUN wp user --allow-root --path=${wordpresslocation} create ${editor_user} ${editor_email} --user_pass="${editor_pass}" --role=editor
 
 # Set nginx config
 RUN rm -f /etc/nginx/sites-enabled/default && \
@@ -119,7 +126,10 @@ RUN rm -f /etc/nginx/sites-enabled/default && \
 
 # remove unused things, also remove PHP and wp-cli
 RUN apt-get purge wget unzip -qq -y && \
-    apt-get autoremove -qq -y
+    apt-get autoremove -qq -y && \
+    rm -r ${wordpresslocation}/wp-content/themes/dorel.io/acf-exports && \
+    rm -r ${wordpresslocation}/wp-content/themes/dorel.io/wp-exports && \
+    rm -r ${wordpresslocation}/wp-content/themes/dorel.io/bash
 
 # Expose port 80
 EXPOSE 80
