@@ -71,7 +71,7 @@ DBNAME=$(echo ${ACCESSURL} | tr . _)
 DBUSER=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 DBPASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 # Set ACCESSURL for Wordpress API
-WPACCESSURL="wp.api.${ACCESSURL}"
+WPACCESSURL="wrps.api.${ACCESSURL}"
 
 ###
 # 1. Validate if the domainname is valid (for letsencrypt)

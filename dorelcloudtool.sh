@@ -623,6 +623,7 @@ EOF
     echo $(((100/28)*14)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
     ARECORDDOMAIN=$(echo ${CERTDOMAIN})
     ARECORDIP=$(gcloud compute forwarding-rules describe "${CERTNAME}-forwarding-rule" --global --format json | jq -r '.IPAddress')
+    sleep 45 # sleep because of leaky bucket of AWS
     CreateARecord
 
     echo $(((100/28)*26)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Write to bucket" 10 70 0
