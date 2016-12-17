@@ -172,12 +172,12 @@ ipWp=$(docker inspect "$containerWp" | jq -r '.[0].NetworkSettings.IPAddress') >
 ## Create nginx setup
 rm -f /etc/nginx/sites-enabled/${WPACCESSURL}
 touch /etc/nginx/sites-enabled/${WPACCESSURL}
-echo "server {" >> /etc/nginx/sites-enabled/${ACCESSURL}
-echo "    server_name ${ACCESSURL};" >> /etc/nginx/sites-enabled/${ACCESSURL}
-echo "    location / {" >> /etc/nginx/sites-enabled/${ACCESSURL}
-echo "        proxy_pass http://$ipWp;" >> /etc/nginx/sites-enabled/${ACCESSURL}
-echo "    }" >> /etc/nginx/sites-enabled/${ACCESSURL}
-echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "server {" >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo "    server_name ${WPACCESSURL};" >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo "    location / {" >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo "        proxy_pass http://$ipWp;" >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo "    }" >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo "}" >> /etc/nginx/sites-enabled/${WPACCESSURL}
 
 # Reload nginx (note NOT restart, we don't want to disturb existing users)
 service nginx reload
