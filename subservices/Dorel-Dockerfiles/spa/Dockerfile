@@ -35,11 +35,11 @@ RUN mkdir /var/www/spa && \
     wget https://github.com/dorel/polymer-spa-dorel-juvenile/archive/${BRANCH}.zip -O /var/www/spa.zip && \
     unzip /var/www/spa.zip -d /var/www/spa && \
     rm /var/www/spa.zip && \
-    mv /var/www/spa/polymer-spa-dorel-juvenile-develop/build/bundled/* /var/www/spa && \
+    mv /var/www/spa/polymer-spa-dorel-juvenile-develop/build/unbundled/* /var/www/spa && \
     rm -r /var/www/spa/polymer-spa-dorel-juvenile-develop
 
 # Set Correct Endpoints in SPA
-RUN sed -i 's|'/wp-json/wp-api-menus/v2'|'https://hola/wp-json/wp-api-menus/v2'|g' /var/www/spa/src/dorel-app.html
+RUN sed -i 's|'/wp-json/wp-api-menus/v2'|'//${WPAPI}/wp-json/wp-api-menus/v2'|g' /var/www/spa/src/dorel-app.html
 
 # Remove unused packages
 RUN apt-get purge wget unzip -qq -y
