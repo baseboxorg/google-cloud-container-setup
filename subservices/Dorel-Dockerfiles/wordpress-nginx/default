@@ -35,7 +35,7 @@ server {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
-        fastcgi_pass FPM_SERVER_IP_ADDRESS:9000; # This will be replaced with the FMP address
+        fastcgi_pass localhost:9000; # This will be replaced with the FMP address
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME /var/www/WordPress$fastcgi_script_name;
         # set headers
