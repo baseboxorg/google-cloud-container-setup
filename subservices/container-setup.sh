@@ -175,7 +175,13 @@ touch /etc/nginx/sites-enabled/${WPACCESSURL}
 echo "server {" >> /etc/nginx/sites-enabled/${WPACCESSURL}
 echo "    server_name ${WPACCESSURL};" >> /etc/nginx/sites-enabled/${WPACCESSURL}
 echo "    location / {" >> /etc/nginx/sites-enabled/${WPACCESSURL}
-echo "        proxy_pass http://$ipWp;" >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo '        proxy_set_header X-Forwarded-Host $host;' >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo '        proxy_set_header X-Forwarded-Server $host;' >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo '        proxy_set_header X-Forwarded-Proto $scheme;' >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo '        proxy_set_header X-Real-IP $remote_addr;' >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo '        proxy_set_header Host $host;' >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo "        proxy_pass http://$ip;" >> /etc/nginx/sites-enabled/${WPACCESSURL}
 echo "    }" >> /etc/nginx/sites-enabled/${WPACCESSURL}
 echo "}" >> /etc/nginx/sites-enabled/${WPACCESSURL}
 
