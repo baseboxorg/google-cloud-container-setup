@@ -74,7 +74,7 @@ RUN mkdir -p /var/www && \
 RUN wp core config --path=${wordpresslocation} --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
 
 # Install Wordpress NEED TO CHANGE PASS SETTINGS
-RUN wp core install --allow-root --path=${wordpresslocation} --url=${site_url} --title=${site_title} --admin_user=admin --admin_password=${admin_pass} --admin_email=io@dorel.eu
+RUN wp core install --allow-root --path=${wordpresslocation} --url="https://${site_url}" --title="${site_title}" --admin_user=admin --admin_password=${admin_pass} --admin_email=io@dorel.eu
 
 # Set chmod 777 and set back later
 RUN chmod 777 /var/www/WordPressPre/wp-config.php && \
