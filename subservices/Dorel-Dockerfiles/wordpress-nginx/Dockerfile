@@ -98,6 +98,7 @@ RUN wp plugin install --allow-root --path=${wordpresslocation} wordpress-importe
     wp plugin install --allow-root --path=${wordpresslocation} wp-api-menus --activate && \
     wp plugin install --allow-root --path=${wordpresslocation} /var/www/WordPressPre/wp-content/plugins/acf-pro.zip --activate && \
     wp plugin install --allow-root --path=${wordpresslocation} acf-to-rest-api --activate && \
+    wp plugin install --allow-root --path=${wordpresslocation} ssl-insecure-content-fixer --activate && \
     wp plugin activate --allow-root --path=${wordpresslocation} advanced-custom-fields-wpcli
 
 # Install theme
