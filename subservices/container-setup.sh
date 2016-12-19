@@ -164,7 +164,7 @@ containerWp=$(docker run -v ${WPACCESSURL}:/var/www/WordPress -d wordpress-gclou
 docker exec ${containerWp} /bin/sh -c 'mv -v /var/www/WordPressPre/* /var/www/WordPress/' >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 ## Set the load balancer settings
-mysql -e "INSERT INTO ${DBNAME}.wp_options (option_value, option_name) VALUES ('a:3:{s:9:\"fix_level\";s:6:\"simple\";s:9:\"proxy_fix\";s:22:\"HTTP_X_FORWARDED_PROTO\";s:12:\"fix_specific\";a:1:{s:9:\"woo_https\";i:1;}}', 'ssl_insecure_content_fixer');"
+# mysql -e "INSERT INTO ${DBNAME}.wp_options (option_value, option_name) VALUES ('a:3:{s:9:\"fix_level\";s:6:\"simple\";s:9:\"proxy_fix\";s:22:\"HTTP_X_FORWARDED_PROTO\";s:12:\"fix_specific\";a:1:{s:9:\"woo_https\";i:1;}}', 'ssl_insecure_content_fixer');"
 
 ## Get the IP of the newly created container
 ipWp=$(docker inspect "$containerWp" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${ACCESSURL}.log
