@@ -164,7 +164,8 @@ FPMCONTAINERIP=$(docker inspect "${FPMCONTAINER}" | jq -r '.[0].NetworkSettings.
 docker build -f ~/container-setup/subservices/Dorel-Dockerfiles/wordpress-nginx/Dockerfile -t wordpress-gcloud --build-arg site_title="${TITLE}" --build-arg editor_email="${EDITOREMAIL}" --build-arg site_url="${ACCESSURL}" --build-arg editor_user="${EDITOREMAIL}" --build-arg editor_pass="${EDITORPASS}" --build-arg admin_pass="${ADMINPASS}" --build-arg dbname="${DBNAME}" --build-arg dbuser="${DBUSER}" --build-arg dbpass="${DBPASS}" --build-arg dbhost="${DBHOST}" --build-arg branch="${BRANCH}" --build-arg fpmip="${FPMCONTAINERIP}" .
 
 ## Build container, get the container ID and connect the dirs
-containerWp=$(docker run -v ${WPACCESSURL}:/var/www/WordPress -v /var/wordpress-content/${WPACCESSURL}:/var/www/WordPress/wp-content -d wordpress-gcloud mv -v /var/www/WordPressPre/* /var/www/WordPress/) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+containerWp=$(docker run -v ${WPACCESSURL}:/var/www/WordPress -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+docker exec ${containerWp} mv -v /var/www/WordPressPre/* /var/www/WordPress/ >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 ## Get the IP of the newly created container
 ipWp=$(docker inspect "$containerWp" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${ACCESSURL}.log
