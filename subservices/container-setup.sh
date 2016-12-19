@@ -146,6 +146,8 @@ echo "        proxy_pass http://$ip;" >> /etc/nginx/sites-enabled/${ACCESSURL}
 echo "    }" >> /etc/nginx/sites-enabled/${ACCESSURL}
 echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 
+exit 0 #temp
+
 ###
 # Start the creation process WORDPRESS
 ###
