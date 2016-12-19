@@ -516,12 +516,12 @@ then
 
     # Generate the Docker Wordpress container
     GenerateUid
-    echo $(((100/28)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
+    echo $(((100/15)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
     ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website \"${WEBSITEACCESSPOINT}\" --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --editoremail \"${EDITOREMAIL}\" --editoruser \"${EDITOREMAIL}\" --editorpass \"${RANDOMUID}\" --adminpass \"${RANDOMUID2}\" -br "${GITBRANCH}" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
     CONTAINERINFO=$(ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "cat /root/.latestSetup.json")
 
     # Generate the Docker Redis container
-    echo $(((100/28)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
+    echo $(((100/15)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
 
     ##
     # Send hosted zone message
@@ -533,7 +533,7 @@ then
     ##
 
     # CERT I: Create certs for top domain
-    echo $(((100/28)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
+    echo $(((100/15)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
     GenerateUid
     CERTDOMAIN=$(echo ${WEBSITEACCESSPOINT})
     CERTNAME=$(echo ${CERTDOMAIN//./-})
@@ -543,7 +543,7 @@ then
     LOADBALANCERID=$(echo "-spa-${RANDOMUID}")
 
     # CERT I: Add certs to loadbalancer
-    echo $(((100/28)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Requesting certs from Letsencrypt" 10 70 0
+    echo $(((100/15)*3)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Requesting certs from Letsencrypt" 10 70 0
     CERTDOMAINSTRIPE=$(echo ${CERTDOMAIN//./-})
     CreateCerts
     # Get the certdomain dir
@@ -555,19 +555,19 @@ then
     RANDOMSTRING=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
     # Add certificates but remove first if available
     gcloud -q beta compute ssl-certificates delete "${LOADBALANCERPREFIX}-ssl-certificates" | true
-    echo $(((100/28)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer. Requesting certs from Letsencrypt" 10 70 0
+    echo $(((100/15)*4)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer. Requesting certs from Letsencrypt" 10 70 0
     gcloud -q beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAINDIR}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAINDIR}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create proxy to loadbalancer
-    echo $(((100/28)*11)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
+    echo $(((100/15)*5)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
     gcloud --quiet compute target-https-proxies create "${CERTNAME}-trgt-https-prx" --url-map "${MACHINECHOICEGROUP}-url-maps" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
 
     # CERT I: Create forwarding rules to loadbalancer
-    echo $(((100/28)*12)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
+    echo $(((100/15)*6)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
     gcloud --quiet compute forwarding-rules create "${CERTNAME}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${CERTNAME}-trgt-https-prx" >> /var/log/dorel/debug.log 2>&1
  
     # Create A record
-    echo $(((100/28)*14)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
+    echo $(((100/15)*7)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
     ARECORDDOMAIN=$(echo ${CERTDOMAIN})
     ARECORDIP=$(gcloud compute forwarding-rules describe "${CERTNAME}-forwarding-rule" --global --format json | jq -r '.IPAddress')
     CreateARecord
@@ -586,7 +586,7 @@ EOF
     ##
 
     # CERT II: Create certs for top domain
-    echo $(((100/28)*15)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
+    echo $(((100/15)*8)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create and distribute SPA certificates" 10 70 0
     GenerateUid
     CERTDOMAIN=$(echo wrps.api.${WEBSITEACCESSPOINT})
     CERTNAME=$(echo ${CERTDOMAIN//./-})
@@ -596,7 +596,7 @@ EOF
     LOADBALANCERID=$(echo "-wrps-${RANDOMUID}")
 
     # CERT II: Add certs to loadbalancer
-    echo $(((100/28)*16)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Requesting certs from Letsencrypt" 10 70 0
+    echo $(((100/15)*9)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Requesting certs from Letsencrypt" 10 70 0
     CERTDOMAINSTRIPE=$(echo ${CERTDOMAIN//./-})
     CreateCerts
     # Get the certdomain dir
@@ -608,25 +608,25 @@ EOF
     RANDOMSTRING=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
     # Add certificates but remove first if available
     gcloud -q beta compute ssl-certificates delete "${LOADBALANCERPREFIX}-ssl-certificates" | true
-    echo $(((100/28)*17)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer. Requesting certs from Letsencrypt" 10 70 0
+    echo $(((100/15)*10)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Add certificates to ${LOADBALANCERTYPE} load balancer. Requesting certs from Letsencrypt" 10 70 0
     gcloud -q beta compute ssl-certificates create "${LOADBALANCERPREFIX}-ssl-certificates" --certificate "/etc/letsencrypt/live/${CERTDOMAINDIR}/fullchain.pem" --private-key "/etc/letsencrypt/live/${CERTDOMAINDIR}/privkey.pem" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Create proxy to loadbalancer
-    echo $(((100/28)*11)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
+    echo $(((100/15)*11)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create proxy for ${LOADBALANCERTYPE}" 10 70 0
     gcloud --quiet compute target-https-proxies create "${CERTNAME}-trgt-https-prx" --url-map "${MACHINECHOICEGROUP}-url-maps" --ssl-certificate "${LOADBALANCERPREFIX}-ssl-certificates" >> /var/log/dorel/debug.log 2>&1
 
     # CERT II: Create forwarding rules to loadbalancer
-    echo $(((100/28)*12)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
+    echo $(((100/15)*12)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create forwarding rules for ${LOADBALANCERTYPE}" 10 70 0
     gcloud --quiet compute forwarding-rules create "${CERTNAME}-forwarding-rule" --global --ip-protocol "TCP" --port-range "443" --target-https-proxy "${CERTNAME}-trgt-https-prx" >> /var/log/dorel/debug.log 2>&1
  
     # Create A record
-    echo $(((100/28)*14)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
+    echo $(((100/15)*13)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Create A records" 10 70 0
     ARECORDDOMAIN=$(echo ${CERTDOMAIN})
     ARECORDIP=$(gcloud compute forwarding-rules describe "${CERTNAME}-forwarding-rule" --global --format json | jq -r '.IPAddress')
     sleep 45 # sleep because of leaky bucket of AWS
     CreateARecord
 
-    echo $(((100/28)*26)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Write to bucket" 10 70 0
+    echo $(((100/15)*14)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Write to bucket" 10 70 0
     # Add worker name to JSON config
     nodejs <<EOF
         var fs    = require("fs")
