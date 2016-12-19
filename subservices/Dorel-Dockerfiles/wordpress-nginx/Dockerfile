@@ -35,8 +35,6 @@ ARG dbhost
 ENV dbhost ${dbhost}
 ARG branch
 ENV branch ${branch}
-ARG fpmip
-ENV fpmip ${fpmip}
 ARG wordpresslocation
 ENV wordpresslocation /var/www/WordPressPre
 
@@ -51,9 +49,11 @@ RUN echo "deb http://ppa.launchpad.net/ondrej/php/ubuntu xenial main" > /etc/apt
     && echo "deb http://ppa.launchpad.net/ondrej/php-qa/ubuntu xenial main" > /etc/apt/sources.list.d/ondrej-php-qa.list \
     && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4F4EA0AAE5267A6C \
     && apt-get update \
-    && apt-get -y --no-install-recommends install php7.1-cli php7.1-mysql php7.1-curl \
+    && apt-get -y --no-install-recommends install php7.1-cli php7.1-mysql php7.1-curl php7.1-fpm \
         php7.1-json php7.1-mcrypt php7.1-opcache php7.1-readline php7.1-xml php7.1-zip php-mbstring php7.1-mbstring \
     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && apt-get update \
+    && apt-get upgrade \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/* ~/.composer
 
@@ -74,7 +74,7 @@ RUN mkdir -p /var/www && \
 RUN wp core config --path=${wordpresslocation} --dbname=${dbname} --dbuser=${dbuser} --dbpass=${dbpass} --dbhost=${dbhost} --allow-root
 
 # Install Wordpress NEED TO CHANGE PASS SETTINGS
-RUN wp core install --allow-root --path=${wordpresslocation} --url="https://${site_url}" --title="${site_title}" --admin_user=admin --admin_password=${admin_pass} --admin_email=io@dorel.eu
+RUN wp core install --allow-root --path=${wordpresslocation} --url="https://wrps.api.${site_url}" --title="${site_title}" --admin_user=admin --admin_password=${admin_pass} --admin_email=io@dorel.eu
 
 # Set chmod 777 and set back later
 RUN chmod 777 /var/www/WordPressPre/wp-config.php && \
@@ -98,6 +98,7 @@ RUN wp plugin install --allow-root --path=${wordpresslocation} wordpress-importe
     wp plugin install --allow-root --path=${wordpresslocation} wp-api-menus --activate && \
     wp plugin install --allow-root --path=${wordpresslocation} /var/www/WordPressPre/wp-content/plugins/acf-pro.zip --activate && \
     wp plugin install --allow-root --path=${wordpresslocation} acf-to-rest-api --activate && \
+    wp plugin install --allow-root --path=${wordpresslocation} ssl-insecure-content-fixer --activate && \
     wp plugin activate --allow-root --path=${wordpresslocation} advanced-custom-fields-wpcli
 
 # Install theme
@@ -121,8 +122,7 @@ RUN wp user --allow-root --path=${wordpresslocation} create ${editor_user} ${edi
 
 # Set nginx config
 RUN rm -f /etc/nginx/sites-enabled/default && \
-    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default && \
-    sed -i -e "s/FPM_SERVER_IP_ADDRESS/${fpmip}/g" /etc/nginx/sites-enabled/default
+    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default
 
 # remove unused things, also remove PHP and wp-cli
 RUN apt-get purge wget unzip -qq -y && \
@@ -134,5 +134,5 @@ RUN apt-get purge wget unzip -qq -y && \
 # Expose port 80
 EXPOSE 80
 
-# start nginx
-CMD nginx -g "daemon off;"
+# start nginx and php fpm
+CMD service php7.1-fpm start && nginx -g "daemon off;"

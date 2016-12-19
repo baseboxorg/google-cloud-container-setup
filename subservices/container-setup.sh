@@ -136,6 +136,12 @@ touch /etc/nginx/sites-enabled/${ACCESSURL}
 echo "server {" >> /etc/nginx/sites-enabled/${ACCESSURL}
 echo "    server_name ${ACCESSURL};" >> /etc/nginx/sites-enabled/${ACCESSURL}
 echo "    location / {" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "        proxy_set_header X-Forwarded-Host "'$host'";" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "                proxy_set_header X-Forwarded-Server "'$host'";" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "                proxy_set_header X-Forwarded-For "'$proxy_add_x_forwarded_for'";" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "                proxy_set_header X-Forwarded-Proto "'$scheme'";" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "                proxy_set_header X-Real-IP "'$remote_addr'";" >> /etc/nginx/sites-enabled/${ACCESSURL}
+echo "                proxy_set_header Host "'$host'";" >> /etc/nginx/sites-enabled/${ACCESSURL}
 echo "        proxy_pass http://$ip;" >> /etc/nginx/sites-enabled/${ACCESSURL}
 echo "    }" >> /etc/nginx/sites-enabled/${ACCESSURL}
 echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
@@ -150,22 +156,15 @@ mkdir -m 777 -p /var/wordpress-content/${WPACCESSURL}
 ## Create mySQL instance with new users
 mysql -e "CREATE DATABASE IF NOT EXISTS ${DBNAME} ; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'%' IDENTIFIED BY '${DBPASS}'" >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
-# Create volume to share
-docker volume create --name "${WPACCESSURL}"
-
-# build php-fpm
-docker build -f ~/container-setup/subservices/Dorel-Dockerfiles/php-fpm/Dockerfile -t php-fpm .
-
-# Run fpm and get IP of container
-FPMCONTAINER=$(docker run -v ${WPACCESSURL}:/var/www/WordPress -d php-fpm)
-FPMCONTAINERIP=$(docker inspect "${FPMCONTAINER}" | jq -r '.[0].NetworkSettings.IPAddress')
-
 ## Build from the Dockerfile based on the env variables
-docker build -f ~/container-setup/subservices/Dorel-Dockerfiles/wordpress-nginx/Dockerfile -t wordpress-gcloud --build-arg site_title="${TITLE}" --build-arg editor_email="${EDITOREMAIL}" --build-arg site_url="${ACCESSURL}" --build-arg editor_user="${EDITOREMAIL}" --build-arg editor_pass="${EDITORPASS}" --build-arg admin_pass="${ADMINPASS}" --build-arg dbname="${DBNAME}" --build-arg dbuser="${DBUSER}" --build-arg dbpass="${DBPASS}" --build-arg dbhost="${DBHOST}" --build-arg branch="${BRANCH}" --build-arg fpmip="${FPMCONTAINERIP}" .
+docker build -f ~/container-setup/subservices/Dorel-Dockerfiles/wordpress-nginx/Dockerfile -t wordpress-gcloud --build-arg site_title="${TITLE}" --build-arg editor_email="${EDITOREMAIL}" --build-arg site_url="${ACCESSURL}" --build-arg editor_user="${EDITOREMAIL}" --build-arg editor_pass="${EDITORPASS}" --build-arg admin_pass="${ADMINPASS}" --build-arg dbname="${DBNAME}" --build-arg dbuser="${DBUSER}" --build-arg dbpass="${DBPASS}" --build-arg dbhost="${DBHOST}" --build-arg branch="${BRANCH}" .
 
 ## Build container, get the container ID and connect the dirs
 containerWp=$(docker run -v ${WPACCESSURL}:/var/www/WordPress -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 docker exec ${containerWp} /bin/sh -c 'mv -v /var/www/WordPressPre/* /var/www/WordPress/' >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+
+## Set the load balancer settings
+mysql -e "INSERT INTO ${DBNAME}.wp_options (option_value, option_name) VALUES ('a:3:{s:9:\"fix_level\";s:6:\"simple\";s:9:\"proxy_fix\";s:22:\"HTTP_X_FORWARDED_PROTO\";s:12:\"fix_specific\";a:1:{s:9:\"woo_https\";i:1;}}', 'ssl_insecure_content_fixer');"
 
 ## Get the IP of the newly created container
 ipWp=$(docker inspect "$containerWp" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${ACCESSURL}.log
