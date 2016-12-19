@@ -35,8 +35,6 @@ ARG dbhost
 ENV dbhost ${dbhost}
 ARG branch
 ENV branch ${branch}
-ARG fpmip
-ENV fpmip ${fpmip}
 ARG wordpresslocation
 ENV wordpresslocation /var/www/WordPressPre
 
@@ -121,8 +119,7 @@ RUN wp user --allow-root --path=${wordpresslocation} create ${editor_user} ${edi
 
 # Set nginx config
 RUN rm -f /etc/nginx/sites-enabled/default && \
-    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default && \
-    sed -i -e "s/FPM_SERVER_IP_ADDRESS/${fpmip}/g" /etc/nginx/sites-enabled/default
+    wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default
 
 # remove unused things, also remove PHP and wp-cli
 RUN apt-get purge wget unzip -qq -y && \
