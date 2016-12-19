@@ -134,5 +134,5 @@ RUN apt-get purge wget unzip -qq -y && \
 # Expose port 80
 EXPOSE 80
 
-# start nginx
-CMD nginx -g "daemon off;"
+# start nginx and php fpm
+CMD service php7.1-fpm start && nginx -g "daemon off;"
