@@ -43,7 +43,7 @@ server {
         access_log off;
         expires $ex;
     }
-    location ~* \.(js|css|svg|png|jpg|jpeg|gif|ico|eot|otf|ttf|woff)$ {
+    location ~* \.(js|css|svg|png|jpg|jpeg|gif|ico|eot|otf|ttf|woff|html|htm)$ {
         add_header Access-Control-Allow-Origin *;
         add_header Cache-Control "public";
         access_log off;
