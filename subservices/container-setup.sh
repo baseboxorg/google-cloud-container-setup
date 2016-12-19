@@ -165,7 +165,7 @@ docker build -f ~/container-setup/subservices/Dorel-Dockerfiles/wordpress-nginx/
 
 ## Build container, get the container ID and connect the dirs
 containerWp=$(docker run -v ${WPACCESSURL}:/var/www/WordPress -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
-docker exec ${containerWp} mv -v /var/www/WordPressPre/* /var/www/WordPress/ >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+docker exec ${containerWp} /bin/sh -c 'mv -v /var/www/WordPressPre/* /var/www/WordPress/' >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 ## Get the IP of the newly created container
 ipWp=$(docker inspect "$containerWp" | jq -r '.[0].NetworkSettings.IPAddress') >> /var/log/wordpress-gcloud/${ACCESSURL}.log
