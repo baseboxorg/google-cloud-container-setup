@@ -138,7 +138,7 @@ RUN mkdir -p /etc/ssl && \
     wget https://storage.googleapis.com/dorel-io--config-bucket/public_keys/local.crt -O /etc/ssl/certs/local.crt && \
     wget https://storage.googleapis.com/dorel-io--config-bucket/public_keys/local.private.key -O /etc/ssl/private/local.key
 
-# Expose port 80
+# Expose port 443
 EXPOSE 443
 
 # start nginx and php fpm
