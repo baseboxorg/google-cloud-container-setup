@@ -124,19 +124,19 @@ RUN wp user --allow-root --path=${wordpresslocation} create ${editor_user} ${edi
 RUN rm -f /etc/nginx/sites-enabled/default && \
     wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${branch}/subservices/Dorel-Dockerfiles/wordpress-nginx/default -O /etc/nginx/sites-enabled/default
 
-# remove unused things, also remove PHP and wp-cli
-RUN apt-get purge wget unzip -qq -y && \
-    apt-get autoremove -qq -y && \
-    rm -r ${wordpresslocation}/wp-content/themes/dorel.io/acf-exports && \
-    rm -r ${wordpresslocation}/wp-content/themes/dorel.io/wp-exports && \
-    rm -r ${wordpresslocation}/wp-content/themes/dorel.io/bash
-
 # Get local SSL
 RUN mkdir -p /etc/ssl && \
     mkdir -p /etc/ssl/certs && \
     mkdir -p /etc/ssl/private && \
     wget https://storage.googleapis.com/dorel-io--config-bucket/public_keys/local.crt -O /etc/ssl/certs/local.crt && \
     wget https://storage.googleapis.com/dorel-io--config-bucket/public_keys/local.private.key -O /etc/ssl/private/local.key
+
+# remove unused things, also remove PHP and wp-cli
+RUN apt-get purge wget unzip -qq -y && \
+    apt-get autoremove -qq -y && \
+    rm -r ${wordpresslocation}/wp-content/themes/dorel.io/acf-exports && \
+    rm -r ${wordpresslocation}/wp-content/themes/dorel.io/wp-exports && \
+    rm -r ${wordpresslocation}/wp-content/themes/dorel.io/bash
 
 # Expose port 443
 EXPOSE 443
