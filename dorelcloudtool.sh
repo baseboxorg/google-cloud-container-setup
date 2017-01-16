@@ -517,8 +517,8 @@ then
     # Generate the Docker Wordpress container
     GenerateUid
     echo $(((100/15)*1)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Wordpress container" 10 70 0
-    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website \"${WEBSITEACCESSPOINT}\" --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --editoremail \"${EDITOREMAIL}\" --editoruser \"${EDITOREMAIL}\" --editorpass \"${RANDOMUID}\" --adminpass \"${RANDOMUID2}\" -br "${GITBRANCH}" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
-    CONTAINERINFO=$(ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${MACHINECHOICE} "cat /root/.latestSetup.json")
+    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${MACHINECHOICE} "wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/container-setup.sh -O ~/container-setup.sh && chmod +x ~/container-setup.sh && sudo ~/container-setup.sh --website \"${WEBSITEACCESSPOINT}\" --accessurl \"${WEBSITEACCESSPOINT}\" --title \"${TITLE}\" --editoremail \"${EDITOREMAIL}\" --editoruser \"${EDITOREMAIL}\" --editorpass \"${RANDOMUID}\" --adminpass \"${RANDOMUID2}\" -br "${GITBRANCH}" && rm ~/container-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    CONTAINERINFO=$(ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${MACHINECHOICE} "cat /root/.latestSetup.json")
 
     # Generate the Docker Redis container
     echo $(((100/15)*2)) | dialog --title "$TITLE" --backtitle "$BACKTITLE" --gauge "Generate the Docker Redis container" 10 70 0
@@ -698,7 +698,7 @@ then
     gcloud compute ssh ${WORKERID} --command "ls" >> /var/log/dorel/debug.log 2>&1
 
     # Exec the setup
-    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${WORKERID} "sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && sudo chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" -P \"${PROJECTID}\" -b \"${PROJECTNAME}\" && sudo rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${WORKERID} "sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && sudo chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" -P \"${PROJECTID}\" -b \"${PROJECTNAME}\" && sudo rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Add worker name to JSON config
     nodejs <<EOF
