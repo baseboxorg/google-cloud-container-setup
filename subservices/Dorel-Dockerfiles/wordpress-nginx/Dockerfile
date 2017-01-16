@@ -131,8 +131,15 @@ RUN apt-get purge wget unzip -qq -y && \
     rm -r ${wordpresslocation}/wp-content/themes/dorel.io/wp-exports && \
     rm -r ${wordpresslocation}/wp-content/themes/dorel.io/bash
 
+# Get local SSL
+RUN mkdir -p /etc/ssl && \
+    mkdir -p /etc/ssl/certs && \
+    mkdir -p /etc/ssl/private && \
+    wget https://storage.googleapis.com/dorel-io--config-bucket/public_keys/local.crt -O /etc/ssl/certs/local.crt && \
+    wget https://storage.googleapis.com/dorel-io--config-bucket/public_keys/local.private.key -O /etc/ssl/private/local.key
+
 # Expose port 80
-EXPOSE 80
+EXPOSE 443
 
 # start nginx and php fpm
 CMD service php7.1-fpm start && nginx -g "daemon off;"
