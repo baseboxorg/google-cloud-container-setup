@@ -147,7 +147,7 @@ echo "    }" >> /etc/nginx/sites-enabled/${ACCESSURL}
 echo "}" >> /etc/nginx/sites-enabled/${ACCESSURL}
 
 ###
-# Start the creation process WORDPRESS
+# Start the creation process WORDPRESS (note = https loadbalancing)
 ###
 
 ## mkdir for wp-content
@@ -181,7 +181,7 @@ echo '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' >> /
 echo '        proxy_set_header X-Forwarded-Proto $scheme;' >> /etc/nginx/sites-enabled/${WPACCESSURL}
 echo '        proxy_set_header X-Real-IP $remote_addr;' >> /etc/nginx/sites-enabled/${WPACCESSURL}
 echo '        proxy_set_header Host $host;' >> /etc/nginx/sites-enabled/${WPACCESSURL}
-echo "        proxy_pass http://$ip;" >> /etc/nginx/sites-enabled/${WPACCESSURL}
+echo "        proxy_pass https://$ip;" >> /etc/nginx/sites-enabled/${WPACCESSURL}
 echo "    }" >> /etc/nginx/sites-enabled/${WPACCESSURL}
 echo "}" >> /etc/nginx/sites-enabled/${WPACCESSURL}
 
