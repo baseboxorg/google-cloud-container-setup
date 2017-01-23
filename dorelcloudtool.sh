@@ -642,6 +642,10 @@ EOF
     # Show success message
     dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The new instance is ready and available on domain: ${WEBSITEACCESSPOINT} for user: ${EDITOREMAIL} and password: ${RANDOMUID}. Admin user: io@dorel.eu Admin pass: ${RANDOMUID2}" 0 0
 
+    # restart script
+    CURRENTSCRIPT=`basename "$0"`
+    bash $CURRENTSCRIPT
+
 fi
 
 ###
@@ -715,6 +719,10 @@ EOF
     # Show success message
     dialog --title "$TITLE" --backtitle "$BACKTITLE" --msgbox "The installation of the Worker is done. All information is stored in the JSON Config Bucket" 0 0
 
+    # restart script
+    CURRENTSCRIPT=`basename "$0"`
+    bash $CURRENTSCRIPT
+
 fi
 
 ###
@@ -774,6 +782,11 @@ then
 
   # Show finish message
   dialog --pause "If you see this message, the initial cloud setup is done. Make sure to save the sub-project name: ${PROJECTNAME}" 20 0 60
+
+  # restart script
+  CURRENTSCRIPT=`basename "$0"`
+  bash $CURRENTSCRIPT
+
 fi
 
 if [[ "$TASK" == "route53_setup" ]]
