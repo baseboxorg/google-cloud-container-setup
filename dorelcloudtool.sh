@@ -702,7 +702,7 @@ then
     gcloud compute ssh ${WORKERID} --command "ls" >> /var/log/dorel/debug.log 2>&1
 
     # Exec the setup
-    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no ubuntu@${WORKERID} "sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && sudo chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" -P \"${PROJECTID}\" -b \"${PROJECTNAME}\" && sudo rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
+    ssh -tt -i ~/.ssh/google_compute_engine -oConnectTimeout=600 -oStrictHostKeyChecking=no root@${WORKERID} "sudo wget https://raw.githubusercontent.com/dorel/google-cloud-container-setup/${GITBRANCH}/subservices/host-worker-setup.sh -O ~/host-worker-setup.sh && sudo chmod +x ~/host-worker-setup.sh && sudo ~/host-worker-setup.sh --sqlip \"${SQLIP}\" --sqlpass \"${PASSWORD1}\" -P \"${PROJECTID}\" -b \"${PROJECTNAME}\" && sudo rm ~/host-worker-setup.sh" >> /var/log/dorel/debug.log 2>&1
 
     # Add worker name to JSON config
     nodejs <<EOF
