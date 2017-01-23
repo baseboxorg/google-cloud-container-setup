@@ -755,6 +755,7 @@ then
   # Set password and collect IP
   GenerateSqlPassword
   echo $(((100/9)*6)) | dialog --gauge "Set mysql root password" 10 70 0
+  sleep 30 # to avoid bug in gcloud sql setup
   gcloud --quiet sql instances set-root-password "${SQLID}" --password "${PASSWORD1}" >> /var/log/dorel/debug.log 2>&1
   SQLIP=$(gcloud sql --format json instances describe "${SQLID}" | jq -r '.ipAddresses[0].ipAddress')
 
