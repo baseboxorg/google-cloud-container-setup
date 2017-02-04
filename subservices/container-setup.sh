@@ -111,7 +111,7 @@ cd ~
 # Download data from repo, remove if it is already there
 rm -rf ~/container-setup >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 mkdir ~/container-setup >> /var/log/wordpress-gcloud/${ACCESSURL}.log
-wget https://github.com/dorel/google-cloud-container-setup/archive/${BRANCH}.zip -O ~/container-setup.zip >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+wget https://github.com/baseboxorg/google-cloud-container-setup/archive/${BRANCH}.zip -O ~/container-setup.zip >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 unzip ~/container-setup.zip -d ~/container-setup >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 rm ~/container-setup.zip >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 mv ~/container-setup/google-cloud-container-setup-${BRANCH}/* ~/container-setup >> /var/log/wordpress-gcloud/${ACCESSURL}.log
