@@ -74,10 +74,10 @@ DBPASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 ###
 
 # 1. Validate url
-[[ $ACCESSURL =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$ ]] || {
-    echo "ERROR - This domain name looks not to be valid. Is formatted subdomain.domain.toplevel? Like www.foobar.com? An IP is not valid."
-    exit 1
-}
+#[[ $ACCESSURL =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$ ]] || {
+#    echo "ERROR - This domain name looks not to be valid. Is formatted subdomain.domain.toplevel? Like www.foobar.com? An IP is not valid."
+#    exit 1
+#}
 
 # 2. Validate Wordpress dir
 if [ -d "/var/wordpress-content/${ACCESSURL}" ]; then
@@ -85,6 +85,8 @@ if [ -d "/var/wordpress-content/${ACCESSURL}" ]; then
     exit 1
 fi
 
+
+mysql --host=${DBHOST} --user=root --password
 # 3. Validate database
 mysql --login-path=local root -e 'use ${DBNAME};' || {
     echo "ERROR - It looks like this database already exists. You can remove it or reconnect to it by using the corresponding bash scripts."
@@ -108,7 +110,7 @@ mysql --login-path=local -e "create database ${DBNAME}; GRANT ALL PRIVILEGES ON 
 docker build -t wordpress-gcloud --build-arg ssl_domain=${ACCESSURL} --build-arg dbhost=${DBHOST} --build-arg dbname=${DBNAME} --build-arg dbuser=${DBUSER} --build-arg dbpass=${DBPASS} --build-arg site_title=${TITLE} --build-arg admin_email=${ADMINEMAIL} --build-arg site_url=${ACCESSURL} --build-arg admin_user=${ADMINUSER} --build-arg admin_pass=${ADMINPASS} . >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Build container, get the container ID and connect the dirs
-container=$(docker run -v /var/wordpress-content/${ACCESSURL}:/var/www/WordPress/wp-content -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
+container=$(docker run -v /var/wordpress-content/. >> /var/log/wordpress-gcloud/${ACCESSURL}.log:/var/www/WordPress/wp-content -d wordpress-gcloud) >> /var/log/wordpress-gcloud/${ACCESSURL}.log
 
 # Copy the container wp-content data onto the volume
 docker exec $container /bin/sh -c "cp -a /var/www/WordPress/wp-content_tmp/. /var/www/WordPress/wp-content/ && rm -R /var/www/WordPress/wp-content_tmp"
