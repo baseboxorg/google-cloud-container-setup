@@ -1,3 +1,4 @@
+e File  133 lines (114 sloc)  4.67 KB
 #!/bin/bash
 ###############
 #
@@ -62,15 +63,10 @@ if [ -z ${ADMINPASS} ];  then echo "-ap or --adminpass is unset | abort"; exit 1
 # Create or select all DB related info
 ###
 DBINFO=$(mysql_config_editor print --login-path=local)
-#DBINFO=$(cat ~/.my.cnf)
 DBHOST=${DBINFO#*host =}
-#DBNAME=$(echo "www.wxs.nl" | tr . _)
-DBNAME=$(echo ${ACCESSURL} | tr . _)
+DBNAME=$(echo "www.wxs.nl" | tr . _)
 DBUSER=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 DBPASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-
-# Set ACCESSURL for Wordpress API
-#WPACCESSURL="wrps.api.${ACCESSURL}"
 
 ###
 # 1. Validate if the domainname is valid (for letsencrypt)
@@ -83,7 +79,6 @@ DBPASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
     echo "ERROR - This domain name looks not to be valid. Is formatted subdomain.domain.toplevel? Like www.foobar.com? An IP is not valid."
     exit 1
 }
-
 
 # 2. Validate Wordpress dir
 if [ -d "/var/wordpress-content/${ACCESSURL}" ]; then
