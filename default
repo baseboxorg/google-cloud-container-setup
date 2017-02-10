@@ -20,10 +20,8 @@ map $request_uri $ex {
 # Define server settings
 ##
 server {
-    listen               80;
-    #ssl                  on;
-    #ssl_certificate	     /etc/ssl/certs/local.crt;
-    #ssl_certificate_key  /etc/ssl/private/local.key;
+    listen 80 default_server;
+    listen [::]:80 default_server;
     
     charset UTF-8;
     root /var/www/WordPress/WordPressPre;
