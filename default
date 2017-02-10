@@ -20,13 +20,13 @@ map $request_uri $ex {
 # Define server settings
 ##
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    #listen 443 ssl default_server;
-    #listen [::]:443 ssl default_server;
+    listen               80;
+    #ssl                  on;
+    #ssl_certificate	     /etc/ssl/certs/local.crt;
+    #ssl_certificate_key  /etc/ssl/private/local.key;
     
     charset UTF-8;
-    root /var/www/WordPress;
+    root /var/www/WordPress/WordPressPre;
     
     index index.php index.html index.htm;
     server_name _;
@@ -36,14 +36,16 @@ server {
     location ~ \.php$ {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/run/php/php7.0-fpm.sock;
         fastcgi_index index.php;
-        include fastcgi.conf;
+        fastcgi_pass unix:/var/run/php/php7.1-fpm.sock;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        # set headers
         add_header Cache-Control $cc; # as defined in the map
         access_log off;
         expires $ex;
     }
-    location ~* \.(js|css|svg|png|jpg|jpeg|gif|ico|eot|otf|ttf|woff)$ {
+    location ~* \.(js|css|svg|png|jpg|jpeg|gif|ico|eot|otf|ttf|woff|html|htm)$ {
         add_header Access-Control-Allow-Origin *;
         add_header Cache-Control "public";
         access_log off;
